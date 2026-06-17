@@ -101,7 +101,7 @@ export default function Analytics() {
           </div>
           
           <div className="h-72 w-full font-mono text-xs">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <BarChart data={yieldData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" />
                 <XAxis dataKey="name" stroke="#475569" style={{ fontSize: '10px' }} />
@@ -131,7 +131,7 @@ export default function Analytics() {
 
           <div className="flex flex-col md:flex-row items-center gap-4 justify-around py-4">
             <div className="h-48 w-48 shrink-0">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                 <PieChart>
                   <Pie
                     data={anomalyData}

@@ -420,7 +420,7 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
               {history.length === 0 ? (
                 <div className="h-full flex items-center justify-center text-slate-500">Connecting to telemetry stream...</div>
               ) : (
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                   <LineChart data={history} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" />
                     <XAxis 

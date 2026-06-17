@@ -101,7 +101,7 @@ export default function SolarDigitalTwin({ azimuth, elevation }: SolarDigitalTwi
           {/* Stand Assembly */}
           <group position={[0, -0.6, 0]}>
             {/* Ground grid coordinate helper */}
-            <gridHelper args={[4, 12, "#06b6d4", "rgba(255,255,255,0.02)"]} position={[0, -0.04, 0]} />
+            <gridHelper args={[4, 12, "#06b6d4", "#1e293b"]} position={[0, -0.04, 0]} />
 
             {/* Vertical mounting stand pillar */}
             <mesh position={[0, 0.35, 0]}>

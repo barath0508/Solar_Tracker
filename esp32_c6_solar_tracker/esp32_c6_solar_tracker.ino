@@ -393,12 +393,8 @@ void sendTelemetry() {
   json += "}";
 
   int httpCode = http.POST(json);
-
-  if (httpCode > 0) {
-    Serial.printf("[Telemetry] POST Success. Code: %d\n", httpCode);
-  } else {
-    Serial.printf("[Telemetry] POST Failed. Error: %s\n", http.errorToString(httpCode).c_str());
-  }
+  String response = http.getString();
+  Serial.printf("[Telemetry] POST Code: %d, Response: %s\n", httpCode, response.c_str());
 
   http.end();
 }
@@ -429,7 +425,8 @@ void sendFaultAlert(String severity, String message) {
   json += "}";
 
   int httpCode = http.POST(json);
-  Serial.printf("[Fault Alert] Status: %d\n", httpCode);
+  String response = http.getString();
+  Serial.printf("[Fault Alert] Status Code: %d, Response: %s\n", httpCode, response.c_str());
   http.end();
 }
 

@@ -117,6 +117,12 @@ const mockSupabaseClient = {
             single: async () => {
               if (table === 'commands') {
                 const cmd = mockDb.insertCommand(singlePayload.device_id, singlePayload.action, singlePayload.payload);
+                // Forward command to Vite dev server API so that physical device can poll it
+                fetch('/api/commands', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(cmd)
+                }).catch(err => console.error('Failed to forward command to Vite API:', err));
                 return { data: cmd, error: null };
               }
               if (table === 'devices') {

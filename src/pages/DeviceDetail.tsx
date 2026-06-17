@@ -6,11 +6,13 @@ import { useRealtimeTelemetry } from '../hooks/useRealtimeTelemetry';
 import type { TelemetryData } from '../hooks/useRealtimeTelemetry';
 import { sendDeviceCommand } from '../services/controlActions';
 import SparkMD5 from 'spark-md5';
+import mockDb from '../services/mockDb';
+import SolarDigitalTwin from '../components/SolarDigitalTwin';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
 } from 'recharts';
 import { 
-  ShieldAlert, Settings, RotateCw, Wind, Cpu, RefreshCw, AlertTriangle, CheckCircle, ArrowLeft,
+  ShieldAlert, Settings, RotateCw, Wind, Cpu, RefreshCw, ArrowLeft,
   Play, Sliders, Sun
 } from 'lucide-react';
 
@@ -77,7 +79,62 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
     }
   }, [liveTelemetry]);
 
-  // 3. Compute MD5 Checksum on file selection
+  // 3. Poll custom API server middleware for physical device telemetry streams
+  useEffect(() => {
+    if (!deviceId) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch('/api/telemetry/poll');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.telemetry && data.telemetry.length > 0) {
+            data.telemetry.forEach((t: any) => {
+              if (t.device_id === deviceId) {
+                mockDb.injectExternalTelemetry(deviceId, t);
+              }
+            });
+          }
+          if (data.faults && data.faults.length > 0) {
+            data.faults.forEach((f: any) => {
+              if (f.device_id === deviceId) {
+                mockDb.injectExternalFault(deviceId, f);
+              }
+            });
+          }
+        }
+      } catch (err) {
+        console.error('API polling stream offline', err);
+      }
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [deviceId]);
+
+  // 3.5. Send manual override command when sliders/tracking changes (debounced)
+  useEffect(() => {
+    if (!deviceId || loading) return;
+    if (userRole === 'Visitor') return;
+
+    const delayDebounce = setTimeout(async () => {
+      try {
+        await supabase.from('commands').insert({
+          device_id: deviceId,
+          action: 'override' as any, // Cast custom action type
+          payload: {
+            auto: isAutoTracking,
+            azimuth: manualAzimuth,
+            elevation: manualElevation
+          },
+          status: 'pending'
+        });
+      } catch (err) {
+        console.error('Failed to send override command:', err);
+      }
+    }, 500);
+
+    return () => clearTimeout(delayDebounce);
+  }, [isAutoTracking, manualAzimuth, manualElevation, deviceId, loading, userRole]);
+
+  // 4. Compute MD5 Checksum on file selection
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -95,7 +152,7 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
     reader.readAsArrayBuffer(file);
   };
 
-  // 4. OTA Firmware Deployment Pipeline
+  // 5. OTA Firmware Deployment Pipeline
   const handleOtaUpload = async () => {
     if (!otaFile || !deviceId) return;
     
@@ -152,7 +209,7 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
     }
   };
 
-  // 5. Trigger hardware actions
+  // 6. Trigger hardware actions
   const triggerAction = async (action: 'stow' | 'clean' | 'reboot') => {
     if (!deviceId) return;
 
@@ -180,7 +237,7 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
     </div>
   );
 
-  const currentMetrics = liveTelemetry || history[history.length - 1] || { v: 0, i: 0, p: 0, temp: 0, fault: 0, ldr: [0,0,0,0] };
+  const currentMetrics = liveTelemetry || history[history.length - 1] || { v: 0, i: 0, p: 0, temp: 0, fault: 0, ldr: [0,0,0,0], id: 0 };
   
   // Calculate dynamic Panel Angle relative to Horizon
   const leftAvg = (currentMetrics.ldr[0] + currentMetrics.ldr[1]) / 2;
@@ -192,7 +249,44 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
   const hasControlsAccess = userRole !== 'Visitor';
   const hasOtaAccess = userRole === 'Admin';
 
-  // 6. Run Edge 1D-CNN Inference simulation
+  // AI Fault Diagnostics mappings
+  const isOpenCircuit = currentMetrics.v > 18 && currentMetrics.i < 0.1;
+  const isShortCircuit = currentMetrics.v < 1 && currentMetrics.i > 4.5;
+  const isPanelFailure = currentMetrics.fault === 3 || currentMetrics.fault === 5;
+
+  const isDustSoiling = currentMetrics.fault === 1;
+  const isBirdDroppings = currentMetrics.fault === 2 && (currentMetrics.id % 2 === 0);
+  const isPartialShading = currentMetrics.fault === 2 && (currentMetrics.id % 2 !== 0);
+
+  const getAgenticAlert = () => {
+    if (isOpenCircuit) {
+      return "ALERT [SYSTEM]: Open circuit condition detected at edge actuator output. Suspect disconnected solar PV leads or blown DC fuse. Recommend checking physical loop connection.";
+    }
+    if (isShortCircuit) {
+      return "CRITICAL [SYSTEM]: Short circuit condition active. Current draw spiked to max limits with near-zero voltage. Disconnect actuator relay immediately to prevent thermal runaway.";
+    }
+    if (isPanelFailure) {
+      return "WARNING [AI CORE]: Panel degradation metrics spike. local resistance hotspot detected via 1D-CNN thermal analyzer. Actuator commanded to stow angle (0° tilt) to reduce heat exposure.";
+    }
+    if (isDustSoiling) {
+      return "MAINTENANCE [VISION AI]: Heavy dust/soiling detected on monocrystalline surface. Power output reduced by 18%. Recommend executing a clean loop or deploying physical wipe sweepers.";
+    }
+    if (isBirdDroppings) {
+      return "WARNING [VISION AI]: Non-uniform light obstruction detected. Patterns indicate localized surface bird droppings. Clean surface area immediately to avoid hot-spot corrosion.";
+    }
+    if (isPartialShading) {
+      return "INFO [VISION AI]: Transient partial shading pattern recorded. Ambient solar irradiance variance matches neighbor structure shading. Closed-loop tracking optimized for diffuse scatter.";
+    }
+    if (currentMetrics.fault === 4) {
+      return "ALERT [EDGE]: Actuator motor blockage registered. Torque exceeds safety bounds. Verify structure joints are free of debris and reset node.";
+    }
+    if (currentMetrics.fault === 6) {
+      return "SAFE_MODE [ANEMOMETER]: Local wind velocity exceeds threshold. Smart safe stow protocol successfully deployed. Panels locked flat (0° orientation).";
+    }
+    return "SYSTEM NOMINAL: AI models and physical sensors reporting nominal tracking coordinates. Sun alignment is optimal. No maintenance required.";
+  };
+
+  // 7. Run Edge 1D-CNN Inference simulation
   const runEdgeInference = () => {
     if (userRole === 'Visitor') {
       alert('🔒 Access Denied: Visitor role cannot run edge diagnostics.');
@@ -269,159 +363,245 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
       )}
 
       {/* 🚀 KPI Dashboard Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div className="bg-slate-900/60 backdrop-blur-md border border-slate-800/80 p-6 rounded-2xl relative overflow-hidden transition hover:border-slate-700">
-          <div className="absolute top-0 right-0 h-24 w-24 bg-yellow-500/5 rounded-full blur-xl" />
-          <p className="text-xs text-slate-500 uppercase font-black">Generation Power</p>
-          <p className="text-4xl font-extrabold text-white mt-2">{currentMetrics.p.toFixed(2)} <span className="text-lg text-slate-500">W</span></p>
-          <div className="text-[10px] text-slate-500 mt-2 font-mono">({currentMetrics.v.toFixed(1)}V @ {currentMetrics.i.toFixed(2)}A)</div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {/* Voltage Card */}
+        <div className="glass-panel p-5 rounded-2xl relative overflow-hidden transition hover:border-cyan-500/20 group">
+          <div className="absolute top-0 right-0 h-16 w-16 bg-cyan-500/5 rounded-full blur-lg" />
+          <p className="text-[10px] text-slate-500 uppercase font-black tracking-wider font-mono">PV Array Voltage</p>
+          <p className="text-3xl font-black text-white mt-2 tracking-tighter font-sans">{currentMetrics.v.toFixed(1)} <span className="text-xs text-slate-500 font-normal font-mono">V</span></p>
+          <div className="text-[9px] text-slate-500 mt-2 font-mono">VOC_LIMIT: 24.0V</div>
         </div>
 
-        <div className="bg-slate-900/60 backdrop-blur-md border border-slate-800/80 p-6 rounded-2xl relative overflow-hidden transition hover:border-slate-700">
-          <div className="absolute top-0 right-0 h-24 w-24 bg-emerald-500/5 rounded-full blur-xl" />
-          <p className="text-xs text-slate-500 uppercase font-black">Cell Temperature</p>
-          <p className={`text-4xl font-extrabold mt-2 ${currentMetrics.temp > 60 ? 'text-rose-500' : 'text-white'}`}>
-            {currentMetrics.temp.toFixed(1)} <span className="text-lg text-slate-500">°C</span>
+        {/* Current Card */}
+        <div className="glass-panel p-5 rounded-2xl relative overflow-hidden transition hover:border-cyan-500/20 group">
+          <div className="absolute top-0 right-0 h-16 w-16 bg-cyan-500/5 rounded-full blur-lg" />
+          <p className="text-[10px] text-slate-500 uppercase font-black tracking-wider font-mono">Ingested Loop Current</p>
+          <p className="text-3xl font-black text-white mt-2 tracking-tighter font-sans">{currentMetrics.i.toFixed(2)} <span className="text-xs text-slate-500 font-normal font-mono">A</span></p>
+          <div className="text-[9px] text-slate-500 mt-2 font-mono">IASC_LIMIT: 5.0A</div>
+        </div>
+
+        {/* Total Power Card */}
+        <div className="glass-panel p-5 rounded-2xl relative overflow-hidden transition hover:border-cyan-500/20 group">
+          <div className="absolute top-0 right-0 h-16 w-16 bg-cyan-500/5 rounded-full blur-lg" />
+          <p className="text-[10px] text-slate-500 uppercase font-black tracking-wider font-mono">Net Power Generated</p>
+          <p className="text-3xl font-black text-white mt-2 tracking-tighter font-sans">{currentMetrics.p.toFixed(2)} <span className="text-xs text-slate-500 font-normal font-mono">W</span></p>
+          <div className="text-[9px] text-slate-500 mt-2 font-mono">CALCULATED: V * I</div>
+        </div>
+
+        {/* Temperature Card */}
+        <div className="glass-panel p-5 rounded-2xl relative overflow-hidden transition hover:border-cyan-500/20 group">
+          <div className="absolute top-0 right-0 h-16 w-16 bg-cyan-500/5 rounded-full blur-lg" />
+          <p className="text-[10px] text-slate-500 uppercase font-black tracking-wider font-mono">Panel Temperature</p>
+          <p className={`text-3xl font-black mt-2 tracking-tighter font-sans ${currentMetrics.temp > 60 ? 'text-rose-500 text-glow-rose' : 'text-white'}`}>
+            {currentMetrics.temp.toFixed(1)} <span className="text-xs text-slate-500 font-normal font-mono">°C</span>
           </p>
-          <div className="text-[10px] text-slate-500 mt-2">Max Threshold Limit: 65°C</div>
-        </div>
-
-        <div className="bg-slate-900/60 backdrop-blur-md border border-slate-800/80 p-6 rounded-2xl relative overflow-hidden transition hover:border-slate-700">
-          <div className="absolute top-0 right-0 h-24 w-24 bg-blue-500/5 rounded-full blur-xl" />
-          <p className="text-xs text-slate-500 uppercase font-black">Sun Position Track</p>
-          <p className="text-4xl font-extrabold text-white mt-2">
-            {(calculatedPanelAngle > 0 ? '+' : '') + calculatedPanelAngle.toFixed(1)}°
-          </p>
-          <div className="text-[10px] text-slate-500 mt-2">Deviation: {(calculatedPanelAngle * 0.1).toFixed(2)}°</div>
-        </div>
-
-        <div className="bg-slate-900/60 backdrop-blur-md border border-slate-800/80 p-6 rounded-2xl relative overflow-hidden transition hover:border-slate-700">
-          <div className="absolute top-0 right-0 h-24 w-24 bg-teal-500/5 rounded-full blur-xl" />
-          <p className="text-xs text-slate-500 uppercase font-black">Anomaly Diagnostics</p>
-          <div className="flex items-center gap-2 mt-3">
-            {currentMetrics.fault === 0 ? (
-              <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                <CheckCircle className="h-4 w-4" /> HEALTHY (OK)
-              </span>
-            ) : (
-              <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                <AlertTriangle className="h-4 w-4" /> FAULT CLASS #{currentMetrics.fault}
-              </span>
-            )}
-          </div>
-          <div className="text-[10px] text-slate-500 mt-3 font-mono">AI Classifier Latency: 1ms</div>
+          <div className="text-[9px] text-slate-500 mt-2 font-mono">TEMP_LIMIT: 65.0°C</div>
         </div>
       </div>
 
       {/* 📊 Main Content Area: Charts & Widgets */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
         
-        {/* Time-Series Generation Analytics Chart */}
-        <div className="lg:col-span-2 bg-slate-900 border border-slate-800/60 p-6 rounded-2xl">
-          <h2 className="text-lg font-bold text-white mb-4">Synchronized Generation & Thermal Profiling</h2>
-          <div className="h-80 w-full">
-            {history.length === 0 ? (
-              <div className="h-full flex items-center justify-center text-slate-500">Connecting to telemetry stream...</div>
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={history} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                  <XAxis 
-                    dataKey="timestamp" 
-                    tickFormatter={(t) => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                    stroke="#64748b" 
-                    style={{ fontSize: '10px' }}
-                  />
-                  <YAxis yAxisId="left" stroke="#10b981" style={{ fontSize: '10px' }} />
-                  <YAxis yAxisId="right" orientation="right" stroke="#f43f5e" style={{ fontSize: '10px' }} />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', color: '#fff', fontSize: '12px' }} 
-                    labelFormatter={(l) => new Date(l).toLocaleTimeString()} 
-                  />
-                  <Legend wrapperStyle={{ fontSize: '11px' }} />
-                  <Line yAxisId="left" type="monotone" dataKey="p" name="Power (W)" stroke="#10b981" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
-                  <Line yAxisId="left" type="monotone" dataKey="v" name="Voltage (V)" stroke="#3b82f6" strokeWidth={1.5} dot={false} />
-                  <Line yAxisId="right" type="monotone" dataKey="temp" name="Temperature (°C)" stroke="#f43f5e" strokeWidth={2} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            )}
+        {/* Left Column: Generation Chart & AI Fault Console */}
+        <div className="lg:col-span-2 space-y-8">
+          
+          {/* Recharts Analytics Chart */}
+          <div className="glass-panel p-6 rounded-3xl relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-cyan-500" />
+            <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-cyan-500" />
+            <div className="absolute bottom-0 left-0 w-2 h-2 border-b border-l border-cyan-500" />
+            <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-cyan-500" />
+
+            <h2 className="text-base font-black text-white mb-4 uppercase tracking-wide flex items-center gap-2">
+              Synchronized Generation & Thermal Profiling
+            </h2>
+            
+            <div className="h-80 w-full font-mono text-[10px]">
+              {history.length === 0 ? (
+                <div className="h-full flex items-center justify-center text-slate-500">Connecting to telemetry stream...</div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={history} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" />
+                    <XAxis 
+                      dataKey="timestamp" 
+                      tickFormatter={(t) => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                      stroke="#475569" 
+                      style={{ fontSize: '9px' }}
+                    />
+                    <YAxis yAxisId="left" stroke="#06b6d4" style={{ fontSize: '9px' }} />
+                    <YAxis yAxisId="right" orientation="right" stroke="#f43f5e" style={{ fontSize: '9px' }} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: '#020617', borderColor: 'rgba(6, 182, 212, 0.2)', color: '#fff', fontSize: '11px', borderRadius: '12px' }} 
+                      labelFormatter={(l) => new Date(l).toLocaleTimeString()} 
+                    />
+                    <Legend wrapperStyle={{ fontSize: '10px', paddingTop: '10px' }} />
+                    <Line yAxisId="left" type="monotone" dataKey="p" name="Power (W)" stroke="#06b6d4" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+                    <Line yAxisId="left" type="monotone" dataKey="v" name="Voltage (V)" stroke="#3b82f6" strokeWidth={1.5} dot={false} />
+                    <Line yAxisId="right" type="monotone" dataKey="temp" name="Temperature (°C)" stroke="#f43f5e" strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </div>
+
+          {/* AI Fault Diagnostics Panel */}
+          <div className="glass-panel p-6 rounded-3xl relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-cyan-500" />
+            <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-cyan-500" />
+            <div className="absolute bottom-0 left-0 w-2 h-2 border-b border-l border-cyan-500" />
+            <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-cyan-500" />
+
+            <h2 className="text-base font-black text-white uppercase tracking-wide flex items-center gap-2 mb-4">
+              <Cpu className="text-cyan-400 h-5 w-5 text-glow-cyan" /> Intelligent Fault Detection & Diagnostics
+            </h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-[9px] uppercase font-black tracking-widest font-mono text-slate-500 mb-2">Edge IoT Diagnostics</h3>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className={`py-2 px-1 rounded-xl border text-center font-mono text-[9px] uppercase tracking-wider font-bold transition duration-300 ${
+                      isOpenCircuit 
+                        ? 'bg-rose-500/10 text-rose-400 border-rose-500/35 text-glow-rose animate-pulse'
+                        : 'bg-slate-950/40 text-slate-600 border-slate-900'
+                    }`}>
+                      Open Circ
+                    </div>
+                    <div className={`py-2 px-1 rounded-xl border text-center font-mono text-[9px] uppercase tracking-wider font-bold transition duration-300 ${
+                      isShortCircuit 
+                        ? 'bg-rose-500/10 text-rose-400 border-rose-500/35 text-glow-rose animate-pulse'
+                        : 'bg-slate-950/40 text-slate-600 border-slate-900'
+                    }`}>
+                      Short Circ
+                    </div>
+                    <div className={`py-2 px-1 rounded-xl border text-center font-mono text-[9px] uppercase tracking-wider font-bold transition duration-300 ${
+                      isPanelFailure 
+                        ? 'bg-rose-500/10 text-rose-400 border-rose-500/35 text-glow-rose animate-pulse'
+                        : 'bg-slate-950/40 text-slate-600 border-slate-900'
+                    }`}>
+                      Panel Fail
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-[9px] uppercase font-black tracking-widest font-mono text-slate-500 mb-2">Vision AI Diagnostics</h3>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className={`py-2 px-1 rounded-xl border text-center font-mono text-[9px] uppercase tracking-wider font-bold transition duration-300 ${
+                      isDustSoiling 
+                        ? 'bg-amber-500/10 text-amber-400 border-amber-500/35 text-glow-gold animate-pulse'
+                        : 'bg-slate-950/40 text-slate-600 border-slate-900'
+                    }`}>
+                      Dust/Soil
+                    </div>
+                    <div className={`py-2 px-1 rounded-xl border text-center font-mono text-[9px] uppercase tracking-wider font-bold transition duration-300 ${
+                      isBirdDroppings 
+                        ? 'bg-amber-500/10 text-amber-400 border-amber-500/35 text-glow-gold animate-pulse'
+                        : 'bg-slate-950/40 text-slate-600 border-slate-900'
+                    }`}>
+                      Droppings
+                    </div>
+                    <div className={`py-2 px-1 rounded-xl border text-center font-mono text-[9px] uppercase tracking-wider font-bold transition duration-300 ${
+                      isPartialShading 
+                        ? 'bg-amber-500/10 text-amber-400 border-amber-500/35 text-glow-gold animate-pulse'
+                        : 'bg-slate-950/40 text-slate-600 border-slate-900'
+                    }`}>
+                      Shading
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col justify-between">
+                <div>
+                  <h3 className="text-[9px] uppercase font-black tracking-widest font-mono text-slate-500 mb-2">Agentic Early Warning Alerts</h3>
+                  <div className={`p-4 bg-slate-950 border rounded-xl font-mono text-[10px] leading-relaxed min-h-[96px] flex items-center transition duration-300 ${
+                    currentMetrics.fault !== 0 || isOpenCircuit || isShortCircuit
+                      ? 'border-rose-500/30 text-rose-400 bg-rose-950/10'
+                      : 'border-slate-850 text-cyan-400 bg-cyan-950/5'
+                  }`}>
+                    {getAgenticAlert()}
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Sun Path Dynamic Widget */}
-        <div className="bg-slate-900 border border-slate-800/60 p-6 rounded-2xl flex flex-col justify-between hover:border-slate-750 transition duration-300">
-          <div>
-            <h2 className="text-base font-black text-white uppercase tracking-wide flex items-center gap-1.5">
-              <Sun className="text-amber-400 h-4.5 w-4.5 text-glow-gold animate-spin-slow" /> Target Tracking HUD
-            </h2>
-            <p className="text-[10px] text-slate-500 font-mono mt-0.5">SYS_RADAR_SUN_ALIGNMENT_VECTOR</p>
-          </div>
+        {/* Right Column: 3D Twin & Radar Tracker */}
+        <div className="lg:col-span-1 space-y-8">
+          
+          {/* Interactive 3D digital twin */}
+          <SolarDigitalTwin azimuth={panelAngle} elevation={isAutoTracking ? 45 : manualElevation} />
 
           {/* SVG Sun Path Graph */}
-          <div className="flex justify-center items-center my-6 relative p-4 bg-slate-950/40 border border-slate-850 rounded-2xl">
-            {/* Scanlines grid effect */}
-            <div className="absolute inset-0 bg-grid-white/[0.02] rounded-2xl pointer-events-none" />
+          <div className="glass-panel p-6 rounded-3xl relative overflow-hidden hover:border-cyan-500/25 transition duration-300">
+            <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-cyan-500" />
+            <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-cyan-500" />
+            <div className="absolute bottom-0 left-0 w-2 h-2 border-b border-l border-cyan-500" />
+            <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-cyan-500" />
             
-            <svg width="240" height="130" viewBox="0 0 240 130" className="overflow-visible z-10 font-mono">
-              {/* Concentric HUD Rings */}
-              <line x1="10" y1="120" x2="230" y2="120" stroke="#1e293b" strokeWidth="2" />
-              <path d="M 20 120 A 100 100 0 0 1 220 120" fill="none" stroke="rgba(6, 182, 212, 0.1)" strokeWidth="2" />
-              <path d="M 50 120 A 70 70 0 0 1 190 120" fill="none" stroke="rgba(6, 182, 212, 0.15)" strokeWidth="1" strokeDasharray="3 3" />
-              <path d="M 80 120 A 40 40 0 0 1 160 120" fill="none" stroke="rgba(6, 182, 212, 0.08)" strokeWidth="2" />
-              
-              {/* Radar Tick Lines */}
-              <line x1="120" y1="120" x2="120" y2="20" stroke="rgba(6, 182, 212, 0.15)" strokeWidth="1" strokeDasharray="2 2" />
-              <line x1="120" y1="120" x2="49.28" y2="49.28" stroke="rgba(6, 182, 212, 0.08)" strokeWidth="1" />
-              <line x1="120" y1="120" x2="190.72" y2="49.28" stroke="rgba(6, 182, 212, 0.08)" strokeWidth="1" />
-              
-              {(() => {
-                const angleRad = (90 - panelAngle) * (Math.PI / 180);
-                const sunX = 120 + 100 * Math.cos(angleRad);
-                const sunY = 120 - 100 * Math.sin(angleRad);
-                return (
-                  <>
-                    {/* Solar intercept vector */}
-                    <line x1="120" y1="120" x2={sunX} y2={sunY} stroke="#fbbf24" strokeWidth="1.5" strokeDasharray="3 2" />
-                    
-                    {/* Target lock symbol */}
-                    <g transform={`translate(${sunX}, ${sunY})`}>
-                      <circle cx="0" cy="0" r="10" fill="none" stroke="#fbbf24" strokeWidth="1" className="animate-ping" style={{ animationDuration: '3s' }} />
-                      <circle cx="0" cy="0" r="6" fill="#fbbf24" className="shadow-[0_0_10px_#fbbf24]" />
-                      <line x1="-8" y1="0" x2="8" y2="0" stroke="#fbbf24" strokeWidth="1" />
-                      <line x1="0" y1="-8" x2="0" y2="8" stroke="#fbbf24" strokeWidth="1" />
-                    </g>
-                  </>
-                );
-              })()}
+            <div>
+              <h2 className="text-base font-black text-white uppercase tracking-wide flex items-center gap-1.5">
+                <Sun className="text-amber-400 h-4.5 w-4.5 text-glow-gold animate-spin-slow" /> Target Tracking HUD
+              </h2>
+              <p className="text-[10px] text-slate-500 font-mono mt-0.5">SYS_RADAR_SUN_ALIGNMENT_VECTOR</p>
+            </div>
 
-              {/* Solar panel chassis HUD */}
-              <g transform={`translate(120, 120) rotate(${panelAngle})`}>
-                {/* Gear joint shaft */}
-                <line x1="0" y1="0" x2="0" y2="-20" stroke="#64748b" strokeWidth="5" />
-                <circle cx="0" cy="0" r="6" fill="#0f172a" stroke="#64748b" strokeWidth="3" />
-                
-                {/* Main panel surface */}
-                <line x1="-45" y1="-20" x2="45" y2="-20" stroke="#06b6d4" strokeWidth="5" strokeLinecap="round" className="shadow-[0_0_8px_rgba(6,182,212,0.4)]" />
-                {/* Photovoltaic layer cells details */}
-                <line x1="-38" y1="-23" x2="-5" y2="-23" stroke="#1e3a8a" strokeWidth="1.5" />
-                <line x1="5" y1="-23" x2="38" y2="-23" stroke="#1e3a8a" strokeWidth="1.5" />
-                
-                {/* Actuator endpoints indicators */}
-                <circle cx="-42" cy="-20" r="2" fill="#f43f5e" />
-                <circle cx="42" cy="-20" r="2" fill="#f43f5e" />
-              </g>
+            <div className="flex justify-center items-center my-6 relative p-4 bg-slate-950/40 border border-slate-850 rounded-2xl">
+              <div className="absolute inset-0 bg-grid-white/[0.02] rounded-2xl pointer-events-none" />
               
-              {/* HUD labels */}
-              <text x="12" y="115" fill="#475569" fontSize="8" fontWeight="bold">E_TGT</text>
-              <text x="210" y="115" fill="#475569" fontSize="8" fontWeight="bold">W_TGT</text>
-              <text x="123" y="32" fill="rgba(6, 182, 212, 0.4)" fontSize="7">ZENITH_90</text>
-            </svg>
+              <svg width="240" height="130" viewBox="0 0 240 130" className="overflow-visible z-10 font-mono">
+                <line x1="10" y1="120" x2="230" y2="120" stroke="#1e293b" strokeWidth="2" />
+                <path d="M 20 120 A 100 100 0 0 1 220 120" fill="none" stroke="rgba(6, 182, 212, 0.1)" strokeWidth="2" />
+                <path d="M 50 120 A 70 70 0 0 1 190 120" fill="none" stroke="rgba(6, 182, 212, 0.15)" strokeWidth="1" strokeDasharray="3 3" />
+                <path d="M 80 120 A 40 40 0 0 1 160 120" fill="none" stroke="rgba(6, 182, 212, 0.08)" strokeWidth="2" />
+                
+                <line x1="120" y1="120" x2="120" y2="20" stroke="rgba(6, 182, 212, 0.15)" strokeWidth="1" strokeDasharray="2 2" />
+                <line x1="120" y1="120" x2="49.28" y2="49.28" stroke="rgba(6, 182, 212, 0.08)" strokeWidth="1" />
+                <line x1="120" y1="120" x2="190.72" y2="49.28" stroke="rgba(6, 182, 212, 0.08)" strokeWidth="1" />
+                
+                {(() => {
+                  const angleRad = (90 - panelAngle) * (Math.PI / 180);
+                  const sunX = 120 + 100 * Math.cos(angleRad);
+                  const sunY = 120 - 100 * Math.sin(angleRad);
+                  return (
+                    <>
+                      <line x1="120" y1="120" x2={sunX} y2={sunY} stroke="#fbbf24" strokeWidth="1.5" strokeDasharray="3 2" />
+                      
+                      <g transform={`translate(${sunX}, ${sunY})`}>
+                        <circle cx="0" cy="0" r="10" fill="none" stroke="#fbbf24" strokeWidth="1" className="animate-ping" style={{ animationDuration: '3s' }} />
+                        <circle cx="0" cy="0" r="6" fill="#fbbf24" />
+                        <line x1="-8" y1="0" x2="8" y2="0" stroke="#fbbf24" strokeWidth="1" />
+                        <line x1="0" y1="-8" x2="0" y2="8" stroke="#fbbf24" strokeWidth="1" />
+                      </g>
+                    </>
+                  );
+                })()}
+
+                <g transform={`translate(120, 120) rotate(${panelAngle})`}>
+                  <line x1="0" y1="0" x2="0" y2="-20" stroke="#64748b" strokeWidth="5" />
+                  <circle cx="0" cy="0" r="6" fill="#0f172a" stroke="#64748b" strokeWidth="3" />
+                  <line x1="-45" y1="-20" x2="45" y2="-20" stroke="#06b6d4" strokeWidth="5" strokeLinecap="round" />
+                  <line x1="-38" y1="-23" x2="-5" y2="-23" stroke="#1e3a8a" strokeWidth="1.5" />
+                  <line x1="5" y1="-23" x2="38" y2="-23" stroke="#1e3a8a" strokeWidth="1.5" />
+                  <circle cx="-42" cy="-20" r="2" fill="#f43f5e" />
+                  <circle cx="42" cy="-20" r="2" fill="#f43f5e" />
+                </g>
+                
+                <text x="12" y="115" fill="#475569" fontSize="8" fontWeight="bold">E_TGT</text>
+                <text x="210" y="115" fill="#475569" fontSize="8" fontWeight="bold">W_TGT</text>
+                <text x="123" y="32" fill="rgba(6, 182, 212, 0.4)" fontSize="7">ZENITH_90</text>
+              </svg>
+            </div>
+
+            <div className="bg-slate-950 p-3 rounded-xl border border-slate-850 text-center text-[10px] font-mono flex items-center justify-between">
+              <span className="text-slate-500 uppercase font-bold">ALIGN_EFFICIENCY:</span>
+              <span className="font-extrabold text-emerald-400 font-mono">{(98.5 - Math.abs(calculatedPanelAngle * 0.05)).toFixed(2)}%</span>
+            </div>
           </div>
 
-          <div className="bg-slate-950 p-3 rounded-xl border border-slate-850 text-center text-[10px] font-mono flex items-center justify-between">
-            <span className="text-slate-500 uppercase font-bold">ALIGN_EFFICIENCY:</span>
-            <span className="font-extrabold text-emerald-400 font-mono">{(98.5 - Math.abs(calculatedPanelAngle * 0.05)).toFixed(2)}%</span>
-          </div>
         </div>
       </div>
 

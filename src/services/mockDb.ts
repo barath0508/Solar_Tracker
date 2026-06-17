@@ -118,8 +118,8 @@ class MockDatabase {
       this.seedData();
     }
 
-    // Start background telemetry generator loop (every 5 seconds)
-    setInterval(() => this.generateTelemetryTick(), 5000);
+    // Start background telemetry generator loop (every 2 seconds)
+    setInterval(() => this.generateTelemetryTick(), 2000);
   }
 
   private loadState() {
@@ -475,6 +475,50 @@ class MockDatabase {
     return () => {
       this.listeners.delete(cb);
     };
+  }
+
+  public injectExternalTelemetry(deviceId: string, data: any) {
+    const nowStr = new Date().toISOString();
+    const v = Number(data.v ?? 15);
+    const i = Number(data.i ?? 2);
+    const tRow: Telemetry = {
+      id: Math.floor(Math.random() * 1000000),
+      device_id: deviceId,
+      v,
+      i,
+      p: Number(data.p ?? (v * i)),
+      temp: Number(data.temp ?? 30),
+      fault: Number(data.fault ?? 0),
+      ldr: data.ldr || [1000, 1000, 1000, 1000],
+      timestamp: nowStr
+    };
+    if (!this.telemetry[deviceId]) this.telemetry[deviceId] = [];
+    this.telemetry[deviceId].push(tRow);
+    if (this.telemetry[deviceId].length > 50) {
+      this.telemetry[deviceId].shift();
+    }
+    this.saveState();
+  }
+
+  public injectExternalFault(deviceId: string, data: any) {
+    const nowStr = new Date().toISOString();
+    const alertObj: Alert = {
+      id: `alert-ext-${Date.now()}`,
+      device_id: deviceId,
+      telemetry_id: Math.floor(Math.random() * 1000000),
+      severity: data.severity || 'warning',
+      message: data.message || 'External IoT Fault Event Registered',
+      is_resolved: false,
+      created_at: nowStr
+    };
+    this.alerts.unshift(alertObj);
+    
+    // Set device status to fault
+    const targetDev = this.devices.find(d => d.id === deviceId);
+    if (targetDev) {
+      targetDev.status = 'fault';
+    }
+    this.saveState();
   }
 
   private notifyListeners() {

@@ -85,6 +85,11 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
     const interval = setInterval(async () => {
       try {
         const res = await fetch('/api/telemetry/poll');
+        if (res.status === 404) {
+          clearInterval(interval);
+          console.warn('⚠️ Backend API polling endpoint returned 404. Disabling local polling loop.');
+          return;
+        }
         if (res.ok) {
           const data = await res.json();
           if (data.telemetry && data.telemetry.length > 0) {

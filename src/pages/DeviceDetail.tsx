@@ -1,7 +1,7 @@
 // src/pages/DeviceDetail.tsx
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { supabase } from '../services/supabase';
+import { supabase, isLiveMode } from '../services/supabase';
 import { useRealtimeTelemetry } from '../hooks/useRealtimeTelemetry';
 import type { TelemetryData } from '../hooks/useRealtimeTelemetry';
 import { sendDeviceCommand } from '../services/controlActions';
@@ -79,9 +79,9 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
     }
   }, [liveTelemetry]);
 
-  // 3. Poll custom API server middleware for physical device telemetry streams
+  // 3. Poll custom API server middleware for physical device telemetry streams (local mock mode only)
   useEffect(() => {
-    if (!deviceId) return;
+    if (!deviceId || isLiveMode) return;
     const interval = setInterval(async () => {
       try {
         const res = await fetch('/api/telemetry/poll');

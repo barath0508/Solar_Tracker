@@ -1,17 +1,21 @@
 #include "esp_camera.h"
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include <WiFiClientSecure.h>
 #include "esp_http_server.h"
 
 // ==========================================
 // User Credentials & Server Configuration
 // ==========================================
-const char* ssid = "POCO X6 5G";
-const char* password = "12345678";
+const char* ssid = "ASHWIN";
+const char* password = "12345678"; // Replace with your actual Wi-Fi password if different
 
-// Target Vite Dev Server API Endpoint
-// Replace with your local machine's IP (e.g., http://192.168.1.15:5173/api/camera/upload)
-const char* uploadUrl = "http://192.168.1.15:5173/api/camera/upload";
+// Target Vite Dev Server API Endpoint on your local machine
+const char* uploadUrl = "http://192.168.137.60:5173/api/camera/upload";
+const char* commandUrl = "http://192.168.137.60:5173/api/commands/poll?device_id=";
+
+// Target Device ID registered in your website's database
+#define DEVICE_ID "d1e028b0-a541-4702-8c20-3354316d2cf1"
 
 // ==========================================
 // ESP32-CAM AI-Thinker Pin Layout
@@ -37,14 +41,17 @@ const char* uploadUrl = "http://192.168.1.15:5173/api/camera/upload";
 // HTTP Server instance
 httpd_handle_t camera_httpd = NULL;
 
-// Hourly timer
+// Timers
 unsigned long lastUploadTime = 0;
 const unsigned long uploadInterval = 3600000; // 1 hour in milliseconds
+unsigned long lastCommandPollTime = 0;
+const unsigned long commandPollInterval = 1000; // Poll commands every 1 second
 
 // Forward Declarations
 void connectWiFi();
 void captureAndUpload();
 void startCameraServer();
+void pollCommands();
 
 // ==========================================
 // Stream Handler for MJPEG
@@ -173,8 +180,7 @@ void setup() {
   }
 
   sensor_t * s = esp_camera_sensor_get();
-  // Drop resolution down a bit for faster live stream by default
-  s->set_framesize(s, FRAMESIZE_VGA); // 640x480
+  s->set_framesize(s, FRAMESIZE_VGA); // 640x480 for fast streaming
 
   // Connect to WiFi
   connectWiFi();
@@ -197,12 +203,18 @@ void loop() {
     lastUploadTime = millis();
   }
 
+  // Poll pending commands (non-blocking)
+  if (millis() - lastCommandPollTime >= commandPollInterval) {
+    pollCommands();
+    lastCommandPollTime = millis();
+  }
+
   // Re-establish Wi-Fi if disconnected
   if (WiFi.status() != WL_CONNECTED) {
     connectWiFi();
   }
 
-  delay(1000);
+  delay(100);
 }
 
 // ==========================================
@@ -247,13 +259,22 @@ void captureAndUpload() {
     return;
   }
 
-  WiFiClient client;
   HTTPClient http;
+  WiFiClient client;
+  WiFiClientSecure clientSecure;
+  bool success = false;
 
   Serial.print("Uploading JPEG to: ");
   Serial.println(uploadUrl);
   
-  if (http.begin(client, uploadUrl)) {
+  if (String(uploadUrl).startsWith("https://")) {
+    clientSecure.setInsecure();
+    success = http.begin(clientSecure, uploadUrl);
+  } else {
+    success = http.begin(client, uploadUrl);
+  }
+  
+  if (success) {
     http.addHeader("Content-Type", "image/jpeg");
     int httpResponseCode = http.POST(fb->buf, fb->len);
     
@@ -269,6 +290,63 @@ void captureAndUpload() {
   }
 
   esp_camera_fb_return(fb);
+}
+
+// ==========================================
+// HTTP Command Polling Helper
+// ==========================================
+void pollCommands() {
+  if (WiFi.status() != WL_CONNECTED) return;
+
+  HTTPClient http;
+  WiFiClient client;
+  WiFiClientSecure clientSecure;
+  bool success = false;
+
+  String url = String(commandUrl) + String(DEVICE_ID) + "&client=camera";
+
+  if (url.startsWith("https://")) {
+    clientSecure.setInsecure();
+    success = http.begin(clientSecure, url);
+  } else {
+    success = http.begin(client, url);
+  }
+
+  if (!success) {
+    Serial.println("[Commands Poll] HTTP begin failed");
+    return;
+  }
+
+  int httpCode = http.GET();
+
+  if (httpCode == HTTP_CODE_OK) {
+    String response = http.getString();
+    Serial.println("[Commands Poll] Response: " + response);
+
+    // Parse commands using index matching (lightweight, zero dependency)
+    if (response.indexOf("\"action\"") != -1) {
+      String action = "";
+      int actionIdx = response.indexOf("\"action\":\"");
+      if (actionIdx != -1) {
+        int start = actionIdx + 10;
+        int end = response.indexOf("\"", start);
+        action = response.substring(start, end);
+        Serial.println("[Command Router] Parsed Action: " + action);
+      }
+
+      if (action == "capture") {
+        Serial.println("Capture command acknowledged. Executing capture...");
+        captureAndUpload();
+      }
+    }
+  } else {
+    // Suppress verbose connection failure logs to avoid spamming the console
+    if (httpCode != -1) {
+      Serial.printf("[Commands Poll] Connection failed. HTTP: %d\n", httpCode);
+    }
+  }
+
+  http.end();
 }
 
 // ==========================================

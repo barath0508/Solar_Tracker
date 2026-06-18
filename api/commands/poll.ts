@@ -35,17 +35,29 @@ export default async function handler(req: any, res: any) {
       });
     }
 
+    const client = req.query.client;
+
     // 1. Fetch pending commands for this device ID
-    const { data: commands, error } = await supabase
+    let query = supabase
       .from('commands')
       .select('*')
       .eq('device_id', deviceId)
       .eq('status', 'pending');
 
+    if (client === 'camera') {
+      // Camera client only retrieves capture commands
+      query = query.eq('action', 'capture');
+    } else {
+      // Other clients (like the tracker) retrieve non-capture commands
+      query = query.neq('action', 'capture');
+    }
+
+    const { data: commands, error } = await query;
+
     if (error) throw error;
 
     if (commands && commands.length > 0) {
-      // 2. Mark commands as 'sent' in Supabase to consume them
+      // 2. Mark retrieved commands as 'sent' in Supabase to consume them
       const ids = commands.map(c => c.id);
       const { error: updateError } = await supabase
         .from('commands')

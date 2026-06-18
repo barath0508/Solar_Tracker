@@ -55,9 +55,9 @@ const char* password = "12345678";
 
 // Replace with your development machine's local IP address
 // e.g. "http://192.168.1.15:5173/api/telemetry"
-const char* telemetryUrl = "https://solar-tracker-pi-jade.vercel.app/api/telemetry";
-const char* faultUrl     = "https://solar-tracker-pi-jade.vercel.app/api/faults";
-const char* commandUrl   = "https://solar-tracker-pi-jade.vercel.app/api/commands/poll?device_id=";
+const char* telemetryUrl = "http://192.168.137.60:5173/api/telemetry";
+const char* faultUrl     = "http://192.168.137.60:5173/api/faults";
+const char* commandUrl   = "http://192.168.137.60:5173/api/commands/poll?device_id=";
 
 // Target Device ID registered in your website's database
 // Default for Rajalakshmi Institute of Technology: "d1e028b0-a541-4702-8c20-3354316d2cf1"

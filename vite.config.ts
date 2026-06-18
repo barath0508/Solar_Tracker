@@ -123,14 +123,28 @@ export default defineConfig({
             try {
               const parsedUrl = new URL(url, 'http://localhost');
               const deviceId = parsedUrl.searchParams.get('device_id');
+              const client = parsedUrl.searchParams.get('client');
               
               // Filter commands for this device ID
-              const deviceCommands = commandsQueue.filter(c => c.device_id === deviceId);
+              let deviceCommands = commandsQueue.filter(c => c.device_id === deviceId);
               
-              // Remove filtered commands from the queue (consume them)
+              if (client === 'camera') {
+                // Camera client only retrieves capture commands
+                deviceCommands = deviceCommands.filter(c => c.action === 'capture');
+              } else {
+                // Other clients (like the tracker) retrieve non-capture commands
+                deviceCommands = deviceCommands.filter(c => c.action !== 'capture');
+              }
+              
+              // Remove consumed commands from the queue
               for (let i = commandsQueue.length - 1; i >= 0; i--) {
-                if (commandsQueue[i].device_id === deviceId) {
-                  commandsQueue.splice(i, 1);
+                const cmd = commandsQueue[i];
+                if (cmd.device_id === deviceId) {
+                  if (client === 'camera' && cmd.action === 'capture') {
+                    commandsQueue.splice(i, 1);
+                  } else if (client !== 'camera' && cmd.action !== 'capture') {
+                    commandsQueue.splice(i, 1);
+                  }
                 }
               }
               

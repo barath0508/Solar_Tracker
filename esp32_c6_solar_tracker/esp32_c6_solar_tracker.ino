@@ -123,8 +123,8 @@ const int H_MAX = 180;
 const int V_MIN = 10;
 const int V_MAX = 100;
 
-// Tracking tolerance
-const int tolerance = 50;
+// Tracking tolerance — lowered for torch demo sensitivity (LDR diffs ~10-15 units)
+const int tolerance = 10;
 
 // Mode control (Auto-tracking vs Remote steering override)
 bool isAutoTracking = true;
@@ -140,7 +140,7 @@ const unsigned long commandPollInterval = 500; // Poll commands every 500ms
 // Forward Declarations
 void connectWiFi();
 void sendTelemetry();
-void sendTelemetryTo(const char* host);
+void sendTelemetryTo(const char* host, float v, float i_mA, float p_mW, float temp, float humidity, int tl, int bl, int tr, int br);
 void sendFaultAlert(String severity, String message);
 void sendFaultAlertTo(const char* host, String severity, String message);
 void pollCommands();
@@ -238,36 +238,39 @@ void loop()
 
   if (isAutoTracking)
   {
-    // Calculate averages
-    int topAvg = (tl + tr) / 2;
-    int bottomAvg = (bl + br) / 2;
+    // Calculate averages (same naming convention as reference code)
+    int avt = (tl + tr) / 2;  // Top average
+    int avd = (bl + br) / 2;  // Bottom average
+    int avl = (tl + bl) / 2;  // Left average
+    int avr = (tr + br) / 2;  // Right average
 
-    int leftAvg = (tl + bl) / 2;
-    int rightAvg = (tr + br) / 2;
+    int dvert  = avt - avd;   // Positive = top brighter  → tilt up
+    int dhoriz = avl - avr;   // Positive = left brighter → turn left
 
-    int verticalDiff = topAvg - bottomAvg;
-    int horizontalDiff = leftAvg - rightAvg;
+    // --- Proportional step: bigger difference = bigger servo move ---
+    // Maps |diff| range [tolerance..400] → step [1..5] degrees
+    // Gives snappy response under torch without overshoot under real sun
+    auto calcStep = [](int diff) -> int {
+      int absDiff = abs(diff);
+      if (absDiff < 30)  return 1;
+      if (absDiff < 80)  return 2;
+      if (absDiff < 150) return 3;
+      if (absDiff < 250) return 4;
+      return 5;
+    };
 
     // Vertical Tracking
-    if (abs(verticalDiff) > tolerance)
-    {
-      if (verticalDiff > 0) {
-        servoV++;
-      } else {
-        servoV--;
-      }
+    if (abs(dvert) > tolerance) {
+      int step = calcStep(dvert);
+      servoV += (dvert > 0) ? step : -step;
       servoV = constrain(servoV, V_MIN, V_MAX);
       verticalServo.write(servoV);
     }
 
     // Horizontal Tracking
-    if (abs(horizontalDiff) > tolerance)
-    {
-      if (horizontalDiff > 0) {
-        servoH--;
-      } else {
-        servoH++;
-      }
+    if (abs(dhoriz) > tolerance) {
+      int step = calcStep(dhoriz);
+      servoH += (dhoriz > 0) ? -step : step;  // Left brighter → decrease H angle
       servoH = constrain(servoH, H_MIN, H_MAX);
       horizontalServo.write(servoH);
     }
@@ -337,7 +340,7 @@ void loop()
     lcd.print(servoV);
   }
 
-  delay(100);
+  delay(10); // Fast tracking loop — matches reference dtime=10
 }
 
 // ==========================================
@@ -468,13 +471,16 @@ float readHumidity() {
   return hum;
 }
 
-void sendTelemetryTo(const char* host) {
+void sendTelemetryTo(const char* host,
+                     float busVoltage, float current_mA, float power_mW,
+                     float temp, float humidity,
+                     int ldr_tl, int ldr_bl, int ldr_tr, int ldr_br) {
   if (WiFi.status() != WL_CONNECTED) return;
 
   HTTPClient http;
   WiFiClient client;
   WiFiClientSecure clientSecure;
-  
+
   String url = String(host) + "/api/telemetry";
   bool success = false;
   if (url.startsWith("https://")) {
@@ -491,42 +497,18 @@ void sendTelemetryTo(const char* host) {
 
   http.addHeader("Content-Type", "application/json");
 
-  float busVoltage = (systemFaultCode != 5) ? ina219.getBusVoltage_V() : 0.0;
-  float current_mA = (systemFaultCode != 5) ? ina219.getCurrent_mA() : 0.0;
-  float power_mW = (systemFaultCode != 5) ? ina219.getPower_mW() : 0.0;
-  float temp = readTemperature();
-  float humidity = readHumidity();
-
-  int ldr_tl = analogRead(LDR_TL);
-  int ldr_bl = analogRead(LDR_BL);
-  int ldr_tr = analogRead(LDR_TR);
-  int ldr_br = analogRead(LDR_BR);
-
-  // ---- Serial Monitor Live Readings ----
-  Serial.println(F("========= SENSOR READINGS ========="));
-  Serial.printf("  Voltage   : %.2f V\n", busVoltage);
-  Serial.printf("  Current   : %.2f mA (%.4f A)\n", current_mA, current_mA / 1000.0);
-  Serial.printf("  Power     : %.2f mW (%.4f W)\n", power_mW, power_mW / 1000.0);
-  Serial.printf("  Temp      : %.1f C\n", temp);
-  Serial.printf("  Humidity  : %.1f %%\n", humidity);
-  Serial.printf("  LDR TL/BL/TR/BR: %d / %d / %d / %d\n", ldr_tl, ldr_bl, ldr_tr, ldr_br);
-  Serial.printf("  Fault Code: %d | Mode: %s\n", systemFaultCode, isAutoTracking ? "AUTO" : "MANUAL");
-  Serial.printf("  Servo H/V : %d / %d\n", servoH, servoV);
-  Serial.printf("  Target    : %s\n", host);
-  Serial.println(F("==================================="));
-
   // Ingested current and power are scaled to Amps and Watts for web graphing compatibility
   String json = "{";
   json += "\"device_id\":\"" + String(DEVICE_ID) + "\",";
   json += "\"v\":" + String(busVoltage, 2) + ",";
-  json += "\"i\":" + String(current_mA / 1000.0, 4) + ","; 
+  json += "\"i\":" + String(current_mA / 1000.0, 4) + ",";
   json += "\"p\":" + String(power_mW / 1000.0, 4) + ",";
   json += "\"temp\":" + String(temp, 1) + ",";
   json += "\"humidity\":" + String(humidity, 1) + ",";
   json += "\"fault\":" + String(systemFaultCode) + ",";
-  json += "\"ldr\":[" + String(ldr_tl) + "," 
-                      + String(ldr_bl) + "," 
-                      + String(ldr_tr) + "," 
+  json += "\"ldr\":[" + String(ldr_tl) + ","
+                      + String(ldr_bl) + ","
+                      + String(ldr_tr) + ","
                       + String(ldr_br) + "]";
   json += "}";
 
@@ -538,9 +520,41 @@ void sendTelemetryTo(const char* host) {
 }
 
 void sendTelemetry() {
-  sendTelemetryTo(localHost);
+  // Read all sensors ONCE per cycle
+  float busVoltage = (systemFaultCode != 5) ? ina219.getBusVoltage_V() : 0.0;
+  float current_mA = (systemFaultCode != 5) ? ina219.getCurrent_mA() : 0.0;
+  float power_mW   = (systemFaultCode != 5) ? ina219.getPower_mW()   : 0.0;
+  float temp       = readTemperature();
+  float humidity   = readHumidity();
+  int   ldr_tl     = analogRead(LDR_TL);  // Top-Left
+  int   ldr_bl     = analogRead(LDR_BL);  // Bottom-Left
+  int   ldr_tr     = analogRead(LDR_TR);  // Top-Right
+  int   ldr_br     = analogRead(LDR_BR);  // Bottom-Right
+
+  // ---- Serial Monitor Live Readings (printed once per cycle) ----
+  Serial.println(F("========= SENSOR READINGS ========="));
+  Serial.printf("  Voltage   : %.2f V\n",               busVoltage);
+  Serial.printf("  Current   : %.2f mA  (%.4f A)\n",    current_mA, current_mA / 1000.0);
+  Serial.printf("  Power     : %.2f mW  (%.4f W)\n",    power_mW,   power_mW   / 1000.0);
+  Serial.printf("  Temp      : %.1f C\n",                temp);
+  Serial.printf("  Humidity  : %.1f %%\n",               humidity);
+  Serial.printf("  LDR TL/BL/TR/BR : %d / %d / %d / %d\n", ldr_tl, ldr_bl, ldr_tr, ldr_br);
+
+  // Compute differences for diagnostic visibility
+  int avt = (ldr_tl + ldr_tr) / 2;
+  int avd = (ldr_bl + ldr_br) / 2;
+  int avl = (ldr_tl + ldr_bl) / 2;
+  int avr = (ldr_tr + ldr_br) / 2;
+  Serial.printf("  Avg Top/Bot/Left/Right: %d / %d / %d / %d\n", avt, avd, avl, avr);
+  Serial.printf("  Vert diff: %d  |  Horiz diff: %d  |  Tol: %d\n", avt - avd, avl - avr, tolerance);
+  Serial.printf("  Fault Code: %d | Mode: %s\n",        systemFaultCode, isAutoTracking ? "AUTO" : "MANUAL");
+  Serial.printf("  Servo H/V : %d / %d\n",              servoH, servoV);
+  Serial.println(F("==================================="));
+
+  // Post the same snapshot to both endpoints
+  sendTelemetryTo(localHost, busVoltage, current_mA, power_mW, temp, humidity, ldr_tl, ldr_bl, ldr_tr, ldr_br);
   if (shouldUseVercel()) {
-    sendTelemetryTo(vercelHost);
+    sendTelemetryTo(vercelHost, busVoltage, current_mA, power_mW, temp, humidity, ldr_tl, ldr_bl, ldr_tr, ldr_br);
   }
 }
 

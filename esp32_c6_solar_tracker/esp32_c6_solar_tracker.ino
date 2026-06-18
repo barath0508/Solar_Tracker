@@ -7,7 +7,6 @@
 #include <LiquidCrystal_I2C.h>
 #include <Adafruit_INA219.h>
 #include <DHT.h>
-#include <esp_task_wdt.h>
 
 // Custom crash-proof Servo implementation for ESP32-C6 (bypasses buggy ESP32Servo library)
 class Servo {
@@ -140,14 +139,6 @@ const unsigned long commandPollInterval  =  500; // Poll Supabase commands every
 const unsigned long overridePollInterval =  100; // Poll fast-lane override every 100ms
 unsigned long lastOverridePollTime = 0;
 
-// Advanced Features State
-#define ANEMOMETER_PIN 5
-volatile unsigned long lastWindPulseTime = 0;
-volatile int windPulseCount = 0;
-bool isNightMode = false;
-float ema_tl = 0, ema_tr = 0, ema_bl = 0, ema_br = 0;
-const float EMA_ALPHA = 0.15; // Low-pass filter coefficient
-
 // Forward Declarations
 void connectWiFi();
 void sendTelemetry();
@@ -168,29 +159,6 @@ float readHumidity();
 void setup()
 {
   Serial.begin(115200);
-
-  // Initialize Hardware Watchdog Timer (10 seconds timeout)
-#if defined(ESP_ARDUINO_VERSION) && ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
-  esp_task_wdt_config_t wdt_config = {
-    .timeout_ms = 10000,
-    .idle_core_mask = (1 << portNUM_PROCESSORS) - 1,    // Bitmask of all cores
-    .trigger_panic = true,
-  };
-  esp_task_wdt_init(&wdt_config);
-#else
-  esp_task_wdt_init(10, true);
-#endif
-  esp_task_wdt_add(NULL);
-
-  // Initialize Anemometer Interrupt
-  pinMode(ANEMOMETER_PIN, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(ANEMOMETER_PIN), []() {
-    // Simple pulse counter / debounce for high wind detection
-    if (millis() - lastWindPulseTime > 10) {
-      windPulseCount++;
-      lastWindPulseTime = millis();
-    }
-  }, FALLING);
 
   // Initialize I2C with ESP32-C6 pins
   Wire.begin(I2C_SDA, I2C_SCL);
@@ -242,24 +210,6 @@ void setup()
 // ==========================================
 void loop()
 {
-  // Reset hardware watchdog on every loop iteration
-  esp_task_wdt_reset();
-
-  // Handle Wind Sensor Interrupt
-  if (windPulseCount > 10) { 
-    // High wind detected (placeholder threshold)
-    if (systemFaultCode != 6) {
-      systemFaultCode = 6;
-      isAutoTracking = false;
-      servoH = 90;
-      servoV = 10; // Safe flat stow angle
-      horizontalServo.write(servoH);
-      verticalServo.write(servoV);
-      sendFaultAlert("critical", "High wind velocity detected by hardware interrupt. Stowed panel flat.");
-    }
-    windPulseCount = 0; // Reset counter
-  }
-
   // 1. Maintain Wi-Fi Connection (Non-blocking background reconnect)
   static unsigned long lastWifiCheck = 0;
   if (WiFi.status() != WL_CONNECTED) {
@@ -283,48 +233,12 @@ void loop()
     lastWifiCheck = 0; // Reset check timer once connected
   }
 
-  // 2. Read Sensors & Apply EMA Low-Pass Filter
-  int raw_tl = analogRead(LDR_TL);
-  int raw_tr = analogRead(LDR_TR);
-  int raw_bl = analogRead(LDR_BL);
-  int raw_br = analogRead(LDR_BR);
+  // 2. Perform closed-loop tracking if in AUTO mode
+  int tl = analogRead(LDR_TL);
+  int tr = analogRead(LDR_TR);
+  int bl = analogRead(LDR_BL);
+  int br = analogRead(LDR_BR);
 
-  if (ema_tl == 0 && ema_tr == 0) { 
-    // Initialize filter on first pass
-    ema_tl = raw_tl; ema_tr = raw_tr; ema_bl = raw_bl; ema_br = raw_br; 
-  } else {
-    ema_tl = (EMA_ALPHA * raw_tl) + ((1.0 - EMA_ALPHA) * ema_tl);
-    ema_tr = (EMA_ALPHA * raw_tr) + ((1.0 - EMA_ALPHA) * ema_tr);
-    ema_bl = (EMA_ALPHA * raw_bl) + ((1.0 - EMA_ALPHA) * ema_bl);
-    ema_br = (EMA_ALPHA * raw_br) + ((1.0 - EMA_ALPHA) * ema_br);
-  }
-
-  int tl = (int)ema_tl;
-  int tr = (int)ema_tr;
-  int bl = (int)ema_bl;
-  int br = (int)ema_br;
-
-  // Night Mode Check (Darkness = High ADC in pull-down config)
-  int avgLight = (tl + tr + bl + br) / 4;
-  if (avgLight > 3800) {
-    if (!isNightMode) {
-      isNightMode = true;
-      isAutoTracking = false; // Disable auto tracking to save power
-      servoH = 90;
-      servoV = 45; // Safe resting angle for night
-      horizontalServo.write(servoH);
-      verticalServo.write(servoV);
-      sendFaultAlert("info", "Night-time darkness detected. Entering standby sleep mode.");
-    }
-  } else {
-    if (isNightMode) {
-      isNightMode = false;
-      isAutoTracking = true; // Resume tracking
-      sendFaultAlert("info", "Morning light detected. Resuming automatic tracking.");
-    }
-  }
-
-  // 3. Perform closed-loop tracking if in AUTO mode
   if (isAutoTracking)
   {
     // Calculate averages exactly as the web dashboard does
@@ -494,7 +408,7 @@ void connectWiFi() {
   
   // Ensure we terminate any active background connection attempts first
   WiFi.disconnect(false);
-  delay(10);
+  delay(100);
   
   Serial.print("Connecting to Wi-Fi SSID: ");
   Serial.println(ssid);
@@ -504,8 +418,29 @@ void connectWiFi() {
   lcd.setCursor(0, 1);
   lcd.print(ssid);
 
-  // Start Wi-Fi connection in the background without blocking the main thread
   WiFi.begin(ssid, password);
+  
+  int attempts = 0;
+  while (WiFi.status() != WL_CONNECTED && attempts < 25) {
+    delay(500);
+    Serial.print(".");
+    attempts++;
+  }
+  
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("\nWi-Fi Connected!");
+    Serial.print("Local IP Address: ");
+    Serial.println(WiFi.localIP());
+    lcd.clear();
+    lcd.print("WiFi Connected");
+    lcd.setCursor(0, 1);
+    lcd.print(WiFi.localIP());
+  } else {
+    Serial.println("\nWi-Fi connection failed.");
+    lcd.clear();
+    lcd.print("WiFi Fail!");
+  }
+  delay(1000);
 }
 
 float readTemperature() {

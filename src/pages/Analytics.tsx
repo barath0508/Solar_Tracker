@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { mockDb } from '../services/mockDb';
 import type { Alert } from '../services/mockDb';
+import { supabase, isLiveMode } from '../services/supabase';
 
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -11,13 +12,35 @@ import { TrendingUp, ShieldAlert, FileText, CheckCircle, PieChart as PieIcon, Ba
 
 export default function Analytics() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [devices, setDevices] = useState<any[]>([]);
 
   useEffect(() => {
-    setAlerts([...mockDb.getAlerts()]);
-    const unsubscribe = mockDb.subscribe(() => {
+    if (!isLiveMode) {
       setAlerts([...mockDb.getAlerts()]);
-    });
-    return () => unsubscribe();
+      setDevices([...mockDb.getDevices()]);
+      const unsubscribe = mockDb.subscribe(() => {
+        setAlerts([...mockDb.getAlerts()]);
+        setDevices([...mockDb.getDevices()]);
+      });
+      return () => unsubscribe();
+    } else {
+      const fetchData = async () => {
+        const { data: alertsData } = await supabase.from('alerts').select('*').order('created_at', { ascending: false });
+        const { data: devicesData } = await supabase.from('devices').select('*');
+        if (alertsData) setAlerts(alertsData as any);
+        if (devicesData) setDevices(devicesData as any);
+      };
+      
+      fetchData();
+
+      const channel = supabase.channel('analytics-alerts-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'alerts' }, () => {
+          fetchData();
+        })
+        .subscribe();
+        
+      return () => { supabase.removeChannel(channel); };
+    }
   }, []);
 
   // 1. Grouped Yield Data: Tracker vs Fixed-Axis
@@ -200,7 +223,7 @@ export default function Analytics() {
                 </tr>
               ) : (
                 alerts.map(a => {
-                  const dev = mockDb.getDevices().find(d => d.id === a.device_id);
+                  const dev = devices.find(d => d.id === a.device_id);
                   return (
                     <tr key={a.id} className="hover:bg-cyan-500/5 transition duration-150">
                       <td className="p-4 font-mono text-slate-500">{a.id.substring(0, 10)}...</td>

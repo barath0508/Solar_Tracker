@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { mockDb } from '../services/mockDb';
 import type { Device, Telemetry } from '../services/mockDb';
 import { supabase, isLiveMode } from '../services/supabase';
+import { sendDeviceCommand } from '../services/controlActions';
 import { 
   Activity, ChevronRight, Plus, Map, Wind, RotateCw, Cpu, Check, ShieldAlert, Sliders
 } from 'lucide-react';
@@ -34,23 +35,13 @@ export default function Dashboard({ userRole }: DashboardProps) {
 
     setCommandStatus(`Dispatching group command: ${action}...`);
     try {
-      if (!isLiveMode) {
-        if (action === 'resolve_all') {
+      if (action === 'resolve_all') {
+        if (!isLiveMode) {
           const activeAlerts = mockDb.getAlerts().filter(a => !a.is_resolved);
           activeAlerts.forEach(a => {
             mockDb.resolveAlert(a.id);
           });
-          setCommandStatus('All active fleet anomalies have been cleared.');
         } else {
-          devices.forEach(dev => {
-            if (dev.status !== 'offline') {
-              mockDb.insertCommand(dev.id, action, { invoked_by: 'fleet-operator@aadhavan.ai', scope: 'fleet-group' });
-            }
-          });
-          setCommandStatus(`Group command "${action.toUpperCase()}" successfully dispatched to all active trackers.`);
-        }
-      } else {
-        if (action === 'resolve_all') {
           // Resolve all active alerts in Supabase
           const { error } = await supabase
             .from('alerts')
@@ -66,26 +57,20 @@ export default function Dashboard({ userRole }: DashboardProps) {
             .eq('status', 'fault');
 
           if (devError) throw devError;
-
-          setCommandStatus('All active fleet anomalies have been cleared.');
-        } else {
-          // Dispatch command row to commands table for each active online device
-          const commandsToInsert = devices
-            .filter(d => d.status !== 'offline')
-            .map(d => ({
-              device_id: d.id,
-              action: action,
-              payload: { invoked_by: 'fleet-operator@aadhavan.ai', scope: 'fleet-group' },
-              status: 'pending',
-              created_at: new Date().toISOString()
-            }));
-
-          if (commandsToInsert.length > 0) {
-            const { error } = await supabase.from('commands').insert(commandsToInsert);
-            if (error) throw error;
-          }
-          setCommandStatus(`Group command "${action.toUpperCase()}" successfully dispatched to all active trackers.`);
         }
+        setCommandStatus('All active fleet anomalies have been cleared.');
+      } else {
+        // Use sendDeviceCommand for both local API posting and Supabase insertion
+        const targetDevices = devices.filter(d => d.status !== 'offline');
+        
+        await Promise.all(targetDevices.map(async (dev) => {
+          if (!isLiveMode) {
+            mockDb.insertCommand(dev.id, action, { invoked_by: 'fleet-operator@aadhavan.ai', scope: 'fleet-group' });
+          }
+          await sendDeviceCommand(dev.id, action, { scope: 'fleet-group' });
+        }));
+
+        setCommandStatus(`Group command "${action.toUpperCase()}" successfully dispatched to all active trackers.`);
       }
 
       setTimeout(() => {

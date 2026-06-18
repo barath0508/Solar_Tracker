@@ -421,20 +421,15 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
       const fileVersion = 'v' + otaFile.name.replace(/[^\d.]/g, '') || 'v2.0.0';
 
       // Log commands record to trigger edge MQTT dispatch
-      const { error: cmdError } = await supabase
-        .from('commands')
-        .insert({
-          device_id: deviceId,
-          action: 'calibrate', // Using calibrate flow for update dispatch
-          payload: { 
-            ota_url: urlData.signedUrl, 
-            md5_hash: otaChecksum,
-            version: fileVersion
-          },
-          status: 'pending'
+      try {
+        await sendDeviceCommand(deviceId, 'calibrate', {
+          ota_url: urlData.signedUrl, 
+          md5_hash: otaChecksum,
+          version: fileVersion
         });
-
-      if (cmdError) throw cmdError;
+      } catch (cmdError) {
+        throw cmdError;
+      }
       
       alert(`⚡ OTA Update Dispatched successfully!\nNew version: ${fileVersion}\nMD5: ${otaChecksum}`);
       setOtaFile(null);
@@ -1009,11 +1004,8 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
                         return;
                       }
                       try {
-                        await supabase.from('commands').insert({
-                          device_id: deviceId,
-                          action: 'capture' as any,
-                          status: 'pending'
-                        });
+                        if (!deviceId) return;
+                        await sendDeviceCommand(deviceId, 'capture');
                         alert('Capture command queued! The camera will upload a new image in a few seconds.');
                       } catch (err) {
                         console.error('Failed to trigger capture:', err);

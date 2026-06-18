@@ -7,6 +7,7 @@
 #include <LiquidCrystal_I2C.h>
 #include <Adafruit_INA219.h>
 #include <DHT.h>
+#include <esp_task_wdt.h>
 
 // Custom crash-proof Servo implementation for ESP32-C6 (bypasses buggy ESP32Servo library)
 class Servo {
@@ -139,6 +140,14 @@ const unsigned long commandPollInterval  =  500; // Poll Supabase commands every
 const unsigned long overridePollInterval =  100; // Poll fast-lane override every 100ms
 unsigned long lastOverridePollTime = 0;
 
+// Advanced Features State
+#define ANEMOMETER_PIN 5
+volatile unsigned long lastWindPulseTime = 0;
+volatile int windPulseCount = 0;
+bool isNightMode = false;
+float ema_tl = 0, ema_tr = 0, ema_bl = 0, ema_br = 0;
+const float EMA_ALPHA = 0.15; // Low-pass filter coefficient
+
 // Forward Declarations
 void connectWiFi();
 void sendTelemetry();
@@ -159,6 +168,20 @@ float readHumidity();
 void setup()
 {
   Serial.begin(115200);
+
+  // Initialize Hardware Watchdog Timer (10 seconds timeout)
+  esp_task_wdt_init(10, true);
+  esp_task_wdt_add(NULL);
+
+  // Initialize Anemometer Interrupt
+  pinMode(ANEMOMETER_PIN, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(ANEMOMETER_PIN), []() {
+    // Simple pulse counter / debounce for high wind detection
+    if (millis() - lastWindPulseTime > 10) {
+      windPulseCount++;
+      lastWindPulseTime = millis();
+    }
+  }, FALLING);
 
   // Initialize I2C with ESP32-C6 pins
   Wire.begin(I2C_SDA, I2C_SCL);
@@ -210,6 +233,24 @@ void setup()
 // ==========================================
 void loop()
 {
+  // Reset hardware watchdog on every loop iteration
+  esp_task_wdt_reset();
+
+  // Handle Wind Sensor Interrupt
+  if (windPulseCount > 10) { 
+    // High wind detected (placeholder threshold)
+    if (systemFaultCode != 6) {
+      systemFaultCode = 6;
+      isAutoTracking = false;
+      servoH = 90;
+      servoV = 10; // Safe flat stow angle
+      horizontalServo.write(servoH);
+      verticalServo.write(servoV);
+      sendFaultAlert("critical", "High wind velocity detected by hardware interrupt. Stowed panel flat.");
+    }
+    windPulseCount = 0; // Reset counter
+  }
+
   // 1. Maintain Wi-Fi Connection (Non-blocking background reconnect)
   static unsigned long lastWifiCheck = 0;
   if (WiFi.status() != WL_CONNECTED) {
@@ -233,49 +274,77 @@ void loop()
     lastWifiCheck = 0; // Reset check timer once connected
   }
 
-  // 2. Perform closed-loop tracking if in AUTO mode
-  int tl = analogRead(LDR_TL);
-  int tr = analogRead(LDR_TR);
-  int bl = analogRead(LDR_BL);
-  int br = analogRead(LDR_BR);
+  // 2. Read Sensors & Apply EMA Low-Pass Filter
+  int raw_tl = analogRead(LDR_TL);
+  int raw_tr = analogRead(LDR_TR);
+  int raw_bl = analogRead(LDR_BL);
+  int raw_br = analogRead(LDR_BR);
 
+  if (ema_tl == 0 && ema_tr == 0) { 
+    // Initialize filter on first pass
+    ema_tl = raw_tl; ema_tr = raw_tr; ema_bl = raw_bl; ema_br = raw_br; 
+  } else {
+    ema_tl = (EMA_ALPHA * raw_tl) + ((1.0 - EMA_ALPHA) * ema_tl);
+    ema_tr = (EMA_ALPHA * raw_tr) + ((1.0 - EMA_ALPHA) * ema_tr);
+    ema_bl = (EMA_ALPHA * raw_bl) + ((1.0 - EMA_ALPHA) * ema_bl);
+    ema_br = (EMA_ALPHA * raw_br) + ((1.0 - EMA_ALPHA) * ema_br);
+  }
+
+  int tl = (int)ema_tl;
+  int tr = (int)ema_tr;
+  int bl = (int)ema_bl;
+  int br = (int)ema_br;
+
+  // Night Mode Check (Darkness = High ADC in pull-down config)
+  int avgLight = (tl + tr + bl + br) / 4;
+  if (avgLight > 3800) {
+    if (!isNightMode) {
+      isNightMode = true;
+      isAutoTracking = false; // Disable auto tracking to save power
+      servoH = 90;
+      servoV = 45; // Safe resting angle for night
+      horizontalServo.write(servoH);
+      verticalServo.write(servoV);
+      sendFaultAlert("info", "Night-time darkness detected. Entering standby sleep mode.");
+    }
+  } else {
+    if (isNightMode) {
+      isNightMode = false;
+      isAutoTracking = true; // Resume tracking
+      sendFaultAlert("info", "Morning light detected. Resuming automatic tracking.");
+    }
+  }
+
+  // 3. Perform closed-loop tracking if in AUTO mode
   if (isAutoTracking)
   {
-    // Calculate averages (same naming as reference code)
+    // Calculate averages exactly as the web dashboard does
     int avt = (tl + tr) / 2;  // Top average
     int avd = (bl + br) / 2;  // Bottom average
     int avl = (tl + bl) / 2;  // Left average
     int avr = (tr + br) / 2;  // Right average
 
-    int dvert  = avt - avd;   // Sign tells us which pair is brighter
-    int dhoriz = avl - avr;   // Sign tells us which pair is brighter
+    // Compute absolute deltas
+    int dvert  = avt - avd;   
+    int dhoriz = avl - avr;   
 
-    // KEY: Lower ADC value = MORE light (LDR pull-down circuit)
-    //   dvert > 0  →  avt > avd  →  bottom has LOWER values  →  bottom is brighter  →  tilt DOWN (servoV--)
-    //   dvert < 0  →  avt < avd  →  top has LOWER values     →  top is brighter     →  tilt UP   (servoV++)
-    //   dhoriz < 0 →  avl < avr  →  left has LOWER values    →  left is brighter    →  turn LEFT (servoH--)
-    //   dhoriz > 0 →  avl > avr  →  right has LOWER values   →  right is brighter   →  turn RIGHT(servoH++)
+    // Web Dashboard formula for azimuth: (leftAvg - rightAvg) * 0.05
+    int calcAzimuth = dhoriz * 0.05;
+    calcAzimuth = constrain(calcAzimuth, -45, 45);
+    
+    // Map to horizontal servo (assuming 90 is center/forward)
+    servoH = 90 + calcAzimuth;
+    servoH = constrain(servoH, H_MIN, H_MAX);
+    horizontalServo.write(servoH);
 
-    // step = |diff| / 2, clamped to [4, 20] degrees
-    auto calcStep = [](int diff) -> int {
-      return constrain(abs(diff) / 2, 4, 20);
-    };
-
-    // Vertical Tracking — corrected direction
-    if (abs(dvert) > tolerance) {
-      int step = calcStep(dvert);
-      servoV += (dvert > 0) ? -step : step;  // bottom brighter → tilt DOWN; top brighter → tilt UP
-      servoV = constrain(servoV, V_MIN, V_MAX);
-      verticalServo.write(servoV);
-    }
-
-    // Horizontal Tracking — corrected direction
-    if (abs(dhoriz) > tolerance) {
-      int step = calcStep(dhoriz);
-      servoH += (dhoriz < 0) ? -step : step;  // left brighter → turn LEFT; right brighter → turn RIGHT
-      servoH = constrain(servoH, H_MIN, H_MAX);
-      horizontalServo.write(servoH);
-    }
+    // Apply the same proportional mapping to elevation (vertical)
+    int calcElevation = dvert * 0.05;
+    calcElevation = constrain(calcElevation, -45, 45);
+    
+    // Map to vertical servo (assuming 45 is the resting center point based on V_MIN=10, V_MAX=100)
+    servoV = 45 + calcElevation;
+    servoV = constrain(servoV, V_MIN, V_MAX);
+    verticalServo.write(servoV);
   }
 
   // 3. Read Electrical & Environmental Sensors

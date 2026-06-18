@@ -134,8 +134,10 @@ int systemFaultCode = 0; // 0=Nominal, 1=Dust/Soiling, 3=Overheat, 4=Motor Block
 unsigned long lastTelemetryTime = 0;
 unsigned long lastCommandPollTime = 0;
 
-const unsigned long telemetryInterval = 2000; // POST telemetry every 2s
-const unsigned long commandPollInterval = 500; // Poll commands every 500ms
+const unsigned long telemetryInterval    = 2000; // POST telemetry every 2s
+const unsigned long commandPollInterval  =  500; // Poll Supabase commands every 500ms
+const unsigned long overridePollInterval =  100; // Poll fast-lane override every 100ms
+unsigned long lastOverridePollTime = 0;
 
 // Forward Declarations
 void connectWiFi();
@@ -145,6 +147,7 @@ void sendFaultAlert(String severity, String message);
 void sendFaultAlertTo(const char* host, String severity, String message);
 void pollCommands();
 void pollCommandsFrom(const char* host);
+void pollFastLaneOverride(); // Fast-lane 100ms override poll (local only)
 void runCleaningSweep();
 void performOTA(String url, String md5);
 float readTemperature();
@@ -311,10 +314,16 @@ void loop()
     lastTelemetryTime = millis();
   }
 
-  // 6. Poll Pending Control Commands
+  // 6. Poll Pending Control Commands (Supabase — stow / clean / reboot / OTA)
   if (millis() - lastCommandPollTime >= commandPollInterval) {
     pollCommands();
     lastCommandPollTime = millis();
+  }
+
+  // 6b. Fast-lane override poll (local server only — 100ms for snappy manual control)
+  if (millis() - lastOverridePollTime >= overridePollInterval) {
+    pollFastLaneOverride();
+    lastOverridePollTime = millis();
   }
 
   // 7. Render local LCD
@@ -709,6 +718,69 @@ void pollCommands() {
   if (shouldUseVercel()) {
     pollCommandsFrom(vercelHost);
   }
+}
+
+// ── Fast-lane override: polls local /api/commands/override every 100ms ──────
+// Bypasses Supabase entirely for low-latency manual slider control.
+void pollFastLaneOverride() {
+  if (WiFi.status() != WL_CONNECTED || !isAutoTracking == false) {
+    // Only act on fast-lane when we might need to move servos
+  }
+  if (WiFi.status() != WL_CONNECTED) return;
+
+  HTTPClient http;
+  WiFiClient client;
+
+  String url = String(localHost) + "/api/commands/override?device_id=" + String(DEVICE_ID);
+  if (!http.begin(client, url)) {
+    http.end();
+    return;
+  }
+
+  http.setTimeout(200); // Hard 200ms timeout — if local server is slow, skip
+  int httpCode = http.GET();
+
+  if (httpCode == HTTP_CODE_OK) {
+    String response = http.getString();
+
+    // Only act if a command is present
+    if (response.indexOf("\"command\":null") != -1 || response.indexOf("\"command\": null") != -1) {
+      http.end();
+      return;
+    }
+    if (response.indexOf("\"action\":\"override\"") == -1 && response.indexOf("\"action\": \"override\"") == -1) {
+      http.end();
+      return;
+    }
+
+    // Parse values
+    bool  autoMode = getJsonBool(response, "auto", true);
+    int   azimuth  = getJsonInt(response,  "azimuth");
+    int   elevation= getJsonInt(response,  "elevation");
+
+    isAutoTracking = autoMode;
+
+    if (!autoMode) {
+      if (azimuth != -999) {
+        servoH = constrain(90 - azimuth, H_MIN, H_MAX);
+        horizontalServo.write(servoH);
+      }
+      if (elevation != -999) {
+        servoV = constrain(elevation, V_MIN, V_MAX);
+        verticalServo.write(servoV);
+      }
+      Serial.printf("[FastLane] Override applied \u2014 H:%d V:%d Auto:%s\n", servoH, servoV, autoMode ? "true" : "false");
+
+      lcd.clear();
+      lcd.print("MANUAL [FAST]");
+      lcd.setCursor(0, 1);
+      lcd.printf("H:%d V:%d", servoH, servoV);
+    } else {
+      Serial.println("[FastLane] Auto mode restored.");
+    }
+  }
+
+  http.end();
 }
 
 void runCleaningSweep() {

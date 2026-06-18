@@ -333,27 +333,40 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
     return () => clearInterval(interval);
   }, [deviceId]);
 
-  // Send manual override command when sliders/tracking changes (debounced)
+  // Send manual override command when sliders/tracking changes
+  // Fast-lane: POST directly to local /api/commands/override (no Supabase latency)
+  // Fallback: also insert to Supabase so Vercel/remote control keeps working
   useEffect(() => {
     if (!deviceId || loading) return;
     if (userRole === 'Visitor') return;
 
+    const payload = {
+      device_id: deviceId,
+      auto:      isAutoTracking,
+      azimuth:   manualAzimuth,
+      elevation: manualElevation,
+    };
+
+    // 1. Fast-lane local post (fire immediately, no debounce)
+    fetch('/api/commands/override', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(payload),
+    }).catch(() => { /* local server offline — no-op */ });
+
+    // 2. Supabase insert (50ms debounce to avoid hammering during rapid slider drag)
     const delayDebounce = setTimeout(async () => {
       try {
         await supabase.from('commands').insert({
           device_id: deviceId,
-          action: 'override' as any, // Cast custom action type
-          payload: {
-            auto: isAutoTracking,
-            azimuth: manualAzimuth,
-            elevation: manualElevation
-          },
-          status: 'pending'
+          action:    'override' as any,
+          payload:   { auto: isAutoTracking, azimuth: manualAzimuth, elevation: manualElevation },
+          status:    'pending'
         });
       } catch (err) {
-        console.error('Failed to send override command:', err);
+        console.error('Failed to send override command to Supabase:', err);
       }
-    }, 150);
+    }, 50);
 
     return () => clearTimeout(delayDebounce);
   }, [isAutoTracking, manualAzimuth, manualElevation, deviceId, loading, userRole]);

@@ -9,6 +9,10 @@ const faultQueue: any[] = [];
 const commandsQueue: any[] = [];
 let lastCameraUploadTime = '';
 
+// Fast-lane in-memory override store for low-latency manual control
+// Key: device_id, Value: latest override payload
+const overrideStore: Record<string, { auto: boolean; azimuth: number; elevation: number; ts: number }> = {};
+
 function parseBody(req: any): Promise<string> {
   return new Promise((resolve) => {
     let body = '';
@@ -154,6 +158,47 @@ export default defineConfig({
             } catch (err: any) {
               res.writeHead(400, { 'Content-Type': 'application/json' });
               res.end(JSON.stringify({ status: 'error', message: err.message }));
+              return;
+            }
+          }
+
+          // ── Fast-lane override: POST stores, GET retrieves (no Supabase) ──────
+          if (url.startsWith('/api/commands/override')) {
+            const parsedUrl = new URL(url, 'http://localhost');
+            const deviceId = parsedUrl.searchParams.get('device_id') || '';
+
+            if (req.method === 'POST') {
+              try {
+                const rawBody = await parseBody(req);
+                const body = JSON.parse(rawBody);
+                overrideStore[body.device_id || deviceId] = {
+                  auto:      body.auto      ?? true,
+                  azimuth:   body.azimuth   ?? 0,
+                  elevation: body.elevation ?? 45,
+                  ts:        Date.now(),
+                };
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ status: 'ok' }));
+              } catch (err: any) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ status: 'error', message: err.message }));
+              }
+              return;
+            }
+
+            if (req.method === 'GET') {
+              const entry = overrideStore[deviceId];
+              // Only serve override if set within the last 30 seconds
+              if (entry && Date.now() - entry.ts < 30_000) {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                  status: 'ok',
+                  command: { action: 'override', auto: entry.auto, azimuth: entry.azimuth, elevation: entry.elevation }
+                }));
+              } else {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ status: 'ok', command: null }));
+              }
               return;
             }
           }

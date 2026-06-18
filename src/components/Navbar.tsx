@@ -52,7 +52,7 @@ export default function Navbar({ userRole, onRoleChange }: NavbarProps) {
             <div className="absolute inset-0 rounded-xl border border-amber-400/30 scale-90 opacity-0 group-hover:scale-110 group-hover:opacity-100 transition duration-300" />
           </div>
           <span className="text-lg font-black tracking-widest text-white">
-            SURYA<span className="text-amber-400 text-glow-gold">MITRA</span>
+            AADHAVAN<span className="text-amber-500 text-glow-solar">AI</span>
             <span className="hidden lg:inline-block ml-2 text-[9px] text-cyan-400 bg-cyan-950/40 border border-cyan-500/25 rounded px-1.5 py-0.5 tracking-wider font-mono font-bold">SYS_v2.4</span>
           </span>
         </Link>

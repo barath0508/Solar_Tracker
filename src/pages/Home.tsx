@@ -29,7 +29,7 @@ export default function Home() {
 
           <div className="space-y-2">
             <h1 className="text-5xl md:text-7xl font-black text-white leading-none tracking-tighter">
-              SURYA<span className="text-amber-400 text-glow-gold">MITRA</span>
+              AADHAVAN<span className="text-amber-500 text-glow-solar">AI</span>
             </h1>
             <p className="text-lg md:text-2xl font-extrabold uppercase tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-teal-300 to-amber-400 text-glow-cyan">
               Autonomous AI Solar HUD
@@ -176,7 +176,7 @@ export default function Home() {
               </div>
               <h3 className="text-2xl font-black text-white">Deployment Inquiry Received!</h3>
               <p className="text-slate-400 text-sm max-w-sm mx-auto">
-                Thank you for requesting a demo of SuryaMitra. An IoT specialist will contact you at <strong className="text-white">{formData.email}</strong> within 24 hours.
+                Thank you for requesting a demo of AadhavanAI. An IoT specialist will contact you at <strong className="text-white">{formData.email}</strong> within 24 hours.
               </p>
               <button 
                 onClick={() => { setSubmitted(false); setFormData({ name: '', email: '', capacity: '10kW', note: '' }); }}
@@ -190,7 +190,7 @@ export default function Home() {
               <div className="text-center space-y-2">
                 <h2 className="text-3xl font-black text-white">Request Deployment Inquiries</h2>
                 <p className="text-slate-400 text-sm">
-                  Partner with SuryaMitra. Fill out the form below to receive a custom generation simulation report.
+                  Partner with AadhavanAI. Fill out the form below to receive a custom generation simulation report.
                 </p>
               </div>
 

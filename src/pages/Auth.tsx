@@ -11,7 +11,7 @@ interface AuthProps {
 
 export default function Auth({ userRole, onRoleChange }: AuthProps) {
   const [isLogin, setIsLogin] = useState(true);
-  const [email, setEmail] = useState('aditya.sen@suryamitra.in');
+  const [email, setEmail] = useState('aditya.sen@aadhavan.ai');
   const [password, setPassword] = useState('password123');
   const [fullName, setFullName] = useState('Aditya Sen');
   const navigate = useNavigate();
@@ -38,7 +38,7 @@ export default function Auth({ userRole, onRoleChange }: AuthProps) {
         {/* Header Title */}
         <div className="text-center space-y-2">
           <div className="inline-flex items-center gap-1 px-3 py-1.5 bg-cyan-500/10 border border-cyan-500/25 text-cyan-400 text-[10px] font-black uppercase rounded-full tracking-widest font-mono">
-            <Sparkles className="h-3 w-3 animate-pulse text-glow-cyan" /> SuryaMitra Control Portal
+            <Sparkles className="h-3 w-3 animate-pulse text-glow-cyan" /> AadhavanAI Control Portal
           </div>
           <h2 className="text-3xl font-black text-white uppercase tracking-tighter text-glow-cyan">
             {isLogin ? 'Sign In to HUD Cockpit' : 'Create Operator Account'}
@@ -84,7 +84,7 @@ export default function Auth({ userRole, onRoleChange }: AuthProps) {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  placeholder="name@suryamitra.in"
+                  placeholder="name@aadhavan.ai"
                   className="w-full pl-10 pr-4 py-3 text-xs text-slate-200 rounded-xl focus:outline-none glass-input"
                 />
               </div>
@@ -139,7 +139,7 @@ export default function Auth({ userRole, onRoleChange }: AuthProps) {
           </div>
           
           <p className="text-[10px] text-slate-400 mb-4 leading-relaxed font-mono">
-            SuryaMitra utilizes strict Role-Based Access Control (RBAC). Select a simulation privilege state below.
+            AadhavanAI utilizes strict Role-Based Access Control (RBAC). Select a simulation privilege state below.
           </p>
 
           <div className="grid grid-cols-2 gap-3">

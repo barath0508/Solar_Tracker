@@ -98,7 +98,7 @@ class MockDatabase {
         full_name: 'Aditya Sen',
         role: 'Admin',
         phone_number: '+91 98765 43210',
-        email: 'aditya.sen@suryamitra.in'
+        email: 'aditya.sen@aadhavan.ai'
       };
 
       const dev = localStorage.getItem('sm_devices');

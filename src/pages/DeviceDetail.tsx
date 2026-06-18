@@ -462,7 +462,7 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
             <Link to="/dashboard" className="p-2 hover:bg-slate-900 border border-slate-850 hover:border-slate-800 rounded-xl transition text-slate-400 hover:text-white">
               <ArrowLeft className="h-4 w-4" />
             </Link>
-            <h1 className="text-3xl font-black tracking-tight text-white">{device?.name || 'SuryaMitra Node'}</h1>
+            <h1 className="text-3xl font-black tracking-tight text-white">{device?.name || 'AadhavanAI Tracker Node'}</h1>
             <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border ${
               device?.status === 'online' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
             }`}>
@@ -666,7 +666,7 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
             </div>
           </div>
 
-          {/* SuryaMitra Opto-Inspect Camera Panel */}
+          {/* AadhavanAI Opto-Inspect Camera Panel */}
           <div className="glass-panel p-6 rounded-3xl relative overflow-hidden transition hover:border-cyan-500/20 group">
             <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-cyan-500" />
             <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-cyan-500" />
@@ -676,7 +676,7 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
               <div>
                 <h2 className="text-base font-black text-white uppercase tracking-wide flex items-center gap-2">
-                  <Camera className="text-cyan-400 h-5 w-5" /> SuryaMitra Optical Inspection Feed
+                  <Camera className="text-cyan-400 h-5 w-5" /> AadhavanAI Optical Inspection Feed
                 </h2>
                 <p className="text-[10px] text-slate-500 font-mono">SYS_CAMERA_VISUAL_MONITORING_UNIT</p>
               </div>

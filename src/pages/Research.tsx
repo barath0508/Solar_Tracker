@@ -109,10 +109,10 @@ export default function Research() {
                   </div>
                 </div>
                 <button 
-                  onClick={() => handleDownload('suryamitra_bom_v1.0.xlsx')}
+                  onClick={() => handleDownload('aadhavanai_bom_v1.0.xlsx')}
                   className="px-4 py-2 bg-slate-950 border border-slate-850 hover:border-emerald-500/35 text-[10px] font-black uppercase tracking-wider text-slate-300 rounded-xl flex items-center gap-1 transition"
                 >
-                  {downloading === 'suryamitra_bom_v1.0.xlsx' ? 'ING...' : <><Download className="h-3 w-3" /> XLS</>}
+                  {downloading === 'aadhavanai_bom_v1.0.xlsx' ? 'ING...' : <><Download className="h-3 w-3" /> XLS</>}
                 </button>
               </div>
 
@@ -128,10 +128,10 @@ export default function Research() {
                   </div>
                 </div>
                 <button 
-                  onClick={() => handleDownload('suryamitra_datasheets.pdf')}
+                  onClick={() => handleDownload('aadhavanai_datasheets.pdf')}
                   className="px-4 py-2 bg-slate-950 border border-slate-850 hover:border-cyan-500/35 text-[10px] font-black uppercase tracking-wider text-slate-300 rounded-xl flex items-center gap-1 transition"
                 >
-                  {downloading === 'suryamitra_datasheets.pdf' ? 'ING...' : <><Download className="h-3 w-3" /> PDF</>}
+                  {downloading === 'aadhavanai_datasheets.pdf' ? 'ING...' : <><Download className="h-3 w-3" /> PDF</>}
                 </button>
               </div>
 
@@ -147,10 +147,10 @@ export default function Research() {
                   </div>
                 </div>
                 <button 
-                  onClick={() => handleDownload('suryamitra_investor_deck.pptx')}
+                  onClick={() => handleDownload('aadhavanai_investor_deck.pptx')}
                   className="px-4 py-2 bg-slate-950 border border-slate-850 hover:border-purple-500/35 text-[10px] font-black uppercase tracking-wider text-slate-300 rounded-xl flex items-center gap-1 transition"
                 >
-                  {downloading === 'suryamitra_investor_deck.pptx' ? 'ING...' : <><Download className="h-3 w-3" /> PPTX</>}
+                  {downloading === 'aadhavanai_investor_deck.pptx' ? 'ING...' : <><Download className="h-3 w-3" /> PPTX</>}
                 </button>
               </div>
 

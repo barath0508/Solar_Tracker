@@ -53,7 +53,7 @@ function App() {
         <footer className="bg-slate-950 border-t border-slate-900 py-12 px-6 text-slate-500 text-xs">
           <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="space-y-1.5 text-center md:text-left">
-              <p className="font-extrabold text-slate-400">SURYAMITRA AI SOLAR TRACKER SYSTEM</p>
+              <p className="font-extrabold text-slate-400">AADHAVAN AI SOLAR TRACKER GRID</p>
               <p>Designed and engineered in India. Solar yield lift of up to 30% via dual-axis embedded calculations.</p>
             </div>
 
@@ -63,7 +63,7 @@ function App() {
               <a href="#/" className="hover:text-amber-400 transition">Terms of Service</a>
             </div>
 
-            <p>© {new Date().getFullYear()} SuryaMitra Inc. All rights reserved.</p>
+            <p>© {new Date().getFullYear()} AadhavanAI Technologies. All rights reserved.</p>
           </div>
         </footer>
 

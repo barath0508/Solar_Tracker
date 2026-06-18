@@ -44,7 +44,7 @@ export default function Dashboard({ userRole }: DashboardProps) {
         } else {
           devices.forEach(dev => {
             if (dev.status !== 'offline') {
-              mockDb.insertCommand(dev.id, action, { invoked_by: 'fleet-operator@suryamitra.in', scope: 'fleet-group' });
+              mockDb.insertCommand(dev.id, action, { invoked_by: 'fleet-operator@aadhavan.ai', scope: 'fleet-group' });
             }
           });
           setCommandStatus(`Group command "${action.toUpperCase()}" successfully dispatched to all active trackers.`);
@@ -75,7 +75,7 @@ export default function Dashboard({ userRole }: DashboardProps) {
             .map(d => ({
               device_id: d.id,
               action: action,
-              payload: { invoked_by: 'fleet-operator@suryamitra.in', scope: 'fleet-group' },
+              payload: { invoked_by: 'fleet-operator@aadhavan.ai', scope: 'fleet-group' },
               status: 'pending',
               created_at: new Date().toISOString()
             }));

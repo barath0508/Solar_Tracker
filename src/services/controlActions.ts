@@ -7,7 +7,7 @@ export async function sendDeviceCommand(deviceId: string, action: 'stow' | 'clea
     .insert({
       device_id: deviceId,
       action,
-      payload: { invoked_by: 'operator@suryamitra.in' },
+      payload: { invoked_by: 'operator@aadhavan.ai' },
       status: 'pending'
     })
     .select()

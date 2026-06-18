@@ -13,7 +13,7 @@ import {
 } from 'recharts';
 import { 
   ShieldAlert, Settings, RotateCw, Wind, Cpu, RefreshCw, ArrowLeft,
-  Play, Sliders, Sun, Brain
+  Play, Sliders, Sun, Brain, Camera, Video
 } from 'lucide-react';
 
 
@@ -41,6 +41,37 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
   const [inferencing, setInferencing] = useState(false);
   const [isAiControl, setIsAiControl] = useState(false);
   const [aiLogs, setAiLogs] = useState<string[]>(["[AI Engine] Initialized in passive monitoring mode."]);
+  
+  // Camera States
+  const [camIp, setCamIp] = useState(() => localStorage.getItem('sm_cam_ip') || '192.168.1.50');
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [lastUploadTime, setLastUploadTime] = useState<string | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  const handleCamIpChange = (ip: string) => {
+    setCamIp(ip);
+    localStorage.setItem('sm_cam_ip', ip);
+  };
+
+  useEffect(() => {
+    const fetchCameraStatus = async () => {
+      try {
+        const res = await fetch('/api/camera/status');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.lastUploadTime) {
+            setLastUploadTime(data.lastUploadTime);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch camera status:', err);
+      }
+    };
+    fetchCameraStatus();
+    const interval = setInterval(fetchCameraStatus, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
   const lastCommandTimeRef = useRef<Record<string, number>>({});
 
   // 0. Scroll to top on page load / device change
@@ -327,6 +358,7 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
     i: typeof rawMetrics.i === 'number' ? rawMetrics.i : 0,
     p: typeof rawMetrics.p === 'number' ? rawMetrics.p : 0,
     temp: typeof rawMetrics.temp === 'number' ? rawMetrics.temp : 0,
+    humidity: typeof rawMetrics.humidity === 'number' ? rawMetrics.humidity : 55,
     fault: typeof rawMetrics.fault === 'number' ? rawMetrics.fault : 0,
     ldr: Array.isArray(rawMetrics.ldr) ? rawMetrics.ldr : [0, 0, 0, 0],
     id: typeof rawMetrics.id === 'number' ? rawMetrics.id : 0,
@@ -459,7 +491,7 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
       )}
 
       {/* 🚀 KPI Dashboard Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-6 mb-8">
         {/* Voltage Card */}
         <div className="glass-panel p-5 rounded-2xl relative overflow-hidden transition hover:border-cyan-500/20 group">
           <div className="absolute top-0 right-0 h-16 w-16 bg-cyan-500/5 rounded-full blur-lg" />
@@ -492,6 +524,16 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
             {currentMetrics.temp.toFixed(1)} <span className="text-xs text-slate-500 font-normal font-mono">°C</span>
           </p>
           <div className="text-[9px] text-slate-500 mt-2 font-mono">TEMP_LIMIT: 65.0°C</div>
+        </div>
+
+        {/* Humidity Card */}
+        <div className="glass-panel p-5 rounded-2xl relative overflow-hidden transition hover:border-cyan-500/20 group">
+          <div className="absolute top-0 right-0 h-16 w-16 bg-cyan-500/5 rounded-full blur-lg" />
+          <p className="text-[10px] text-slate-500 uppercase font-black tracking-wider font-mono">Relative Humidity</p>
+          <p className="text-3xl font-black text-white mt-2 tracking-tighter font-sans">
+            {currentMetrics.humidity.toFixed(0)} <span className="text-xs text-slate-500 font-normal font-mono">%</span>
+          </p>
+          <div className="text-[9px] text-slate-500 mt-2 font-mono">DHT11 SENSOR</div>
         </div>
       </div>
 
@@ -619,6 +661,175 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
                   }`}>
                     {getAgenticAlert()}
                   </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* SuryaMitra Opto-Inspect Camera Panel */}
+          <div className="glass-panel p-6 rounded-3xl relative overflow-hidden transition hover:border-cyan-500/20 group">
+            <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-cyan-500" />
+            <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-cyan-500" />
+            <div className="absolute bottom-0 left-0 w-2 h-2 border-b border-l border-cyan-500" />
+            <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-cyan-500" />
+            
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+              <div>
+                <h2 className="text-base font-black text-white uppercase tracking-wide flex items-center gap-2">
+                  <Camera className="text-cyan-400 h-5 w-5" /> SuryaMitra Optical Inspection Feed
+                </h2>
+                <p className="text-[10px] text-slate-500 font-mono">SYS_CAMERA_VISUAL_MONITORING_UNIT</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] text-slate-400 font-mono bg-slate-900 border border-slate-800 px-2 py-1 rounded-md">
+                  OV2640 CAMERA MODULE
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+              {/* Image Frame Column */}
+              <div className="md:col-span-7 flex flex-col justify-center">
+                <div className="relative aspect-video rounded-2xl overflow-hidden border border-slate-800 bg-slate-950 flex items-center justify-center group/screen">
+                  <div className="absolute inset-0 bg-grid-white/[0.02] pointer-events-none" />
+                  
+                  {isStreaming ? (
+                    <img 
+                      src={`http://${camIp}/stream`} 
+                      alt="Live Stream" 
+                      className="w-full h-full object-cover"
+                      onError={() => {
+                        setIsStreaming(false);
+                        alert("Failed to connect to ESP32-CAM live stream. Make sure the camera is online and your browser has local IP access to http://" + camIp);
+                      }}
+                    />
+                  ) : (
+                    <img 
+                      src={`/camera.jpg?t=${refreshTrigger}-${lastUploadTime || ''}`} 
+                      alt="Last Capture" 
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as any).style.display = 'none';
+                        const parent = (e.target as any).parentNode;
+                        const placeholder = parent.querySelector('.placeholder-text');
+                        if (placeholder) placeholder.style.display = 'flex';
+                      }}
+                      onLoad={(e) => {
+                        (e.target as any).style.display = 'block';
+                        const parent = (e.target as any).parentNode;
+                        const placeholder = parent.querySelector('.placeholder-text');
+                        if (placeholder) placeholder.style.display = 'none';
+                      }}
+                    />
+                  )}
+                  
+                  {/* Fallback Placeholder Text */}
+                  <div className="placeholder-text absolute inset-0 hidden flex-col items-center justify-center text-slate-500 p-4 font-mono text-center">
+                    <Video className="h-10 w-10 text-slate-600 mb-2 animate-pulse" />
+                    <span className="text-xs">No Photo Uploaded Yet</span>
+                    <span className="text-[9px] text-slate-600 mt-1 max-w-[250px]">Hourly upload will update this frame. Make sure your ESP32-CAM is powered and configured.</span>
+                  </div>
+
+                  {/* Watermark Overlay */}
+                  <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-md text-[9px] font-mono text-slate-300 border border-white/5 flex items-center gap-1.5 z-10">
+                    <span className={`h-1.5 w-1.5 rounded-full ${isStreaming ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500'}`} />
+                    {isStreaming ? 'LIVE MONITORING' : 'STILL CAPTURE'}
+                  </div>
+
+                  <div className="absolute bottom-3 right-3 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-md text-[9px] font-mono text-slate-400 border border-white/5 z-10">
+                    {lastUploadTime ? new Date(lastUploadTime).toLocaleTimeString() : 'N/A'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Camera Configurations Column */}
+              <div className="md:col-span-5 flex flex-col justify-between space-y-4">
+                <div className="space-y-4">
+                  <div className="p-4 bg-slate-950/60 border border-slate-900 rounded-2xl space-y-3">
+                    <h3 className="text-xs font-black text-slate-300 uppercase font-mono tracking-wider">Stream Configuration</h3>
+                    
+                    <div>
+                      <label className="text-[9px] text-slate-500 uppercase font-black tracking-wider block mb-1">ESP32-CAM Local IP Address</label>
+                      <div className="flex gap-2">
+                        <input 
+                          type="text" 
+                          value={camIp}
+                          onChange={(e) => handleCamIpChange(e.target.value)}
+                          placeholder="e.g. 192.168.1.50" 
+                          className="flex-1 bg-slate-900 border border-slate-800 text-white rounded-xl px-3 py-1.5 text-xs font-mono focus:border-cyan-500 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2">
+                      <div>
+                        <span className="text-[10px] font-bold text-slate-300 block">Start Live Stream</span>
+                        <span className="text-[9px] text-slate-500 font-mono">MJPEG stream via local network</span>
+                      </div>
+                      <button
+                        onClick={() => setIsStreaming(!isStreaming)}
+                        className={`relative inline-flex h-5.5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                          isStreaming ? 'bg-rose-500' : 'bg-slate-800'
+                        }`}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-4.5 w-4.5 transform rounded-full bg-slate-950 shadow ring-0 transition duration-200 ease-in-out ${
+                            isStreaming ? 'translate-x-4.5' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="p-4 bg-slate-950/60 border border-slate-900 rounded-2xl space-y-2.5">
+                    <h3 className="text-xs font-black text-slate-300 uppercase font-mono tracking-wider">Health & Timing</h3>
+                    <div className="grid grid-cols-2 gap-4 text-left font-mono">
+                      <div>
+                        <span className="text-[9px] text-slate-500 block uppercase font-black">Interval</span>
+                        <span className="text-xs text-slate-300">1 Hour</span>
+                      </div>
+                      <div>
+                        <span className="text-[9px] text-slate-500 block uppercase font-black">WiFi Status</span>
+                        <span className="text-xs text-emerald-400 font-bold">Connected</span>
+                      </div>
+                    </div>
+                    <div className="border-t border-slate-900 pt-2 text-left font-mono">
+                      <span className="text-[9px] text-slate-500 block uppercase font-black">Last Photo Uploaded</span>
+                      <span className="text-[10px] text-slate-300 font-bold">
+                        {lastUploadTime ? new Date(lastUploadTime).toLocaleString() : 'Waiting for initial capture...'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <button 
+                    onClick={() => setRefreshTrigger(prev => prev + 1)}
+                    className="flex-1 py-2 px-3 bg-slate-900 border border-slate-800 hover:border-slate-700 active:bg-slate-950 text-slate-300 hover:text-white rounded-xl font-bold font-mono text-[10px] uppercase transition duration-200 flex items-center justify-center gap-1.5"
+                  >
+                    <RefreshCw className="h-3 w-3" /> Refresh Image
+                  </button>
+                  <button 
+                    onClick={async () => {
+                      if (userRole === 'Visitor') {
+                        alert('🔒 Access Denied: Visitor role cannot dispatch capture commands.');
+                        return;
+                      }
+                      try {
+                        await supabase.from('commands').insert({
+                          device_id: deviceId,
+                          action: 'capture' as any,
+                          status: 'pending'
+                        });
+                        alert('Capture command queued! The camera will upload a new image in a few seconds.');
+                      } catch (err) {
+                        console.error('Failed to trigger capture:', err);
+                      }
+                    }}
+                    className="flex-1 py-2 px-3 bg-cyan-500/10 border border-cyan-500/25 hover:border-cyan-500/40 text-cyan-400 hover:text-cyan-300 rounded-xl font-bold font-mono text-[10px] uppercase transition duration-200 flex items-center justify-center gap-1.5"
+                  >
+                    <Camera className="h-3.5 w-3.5" /> Capture Now
+                  </button>
                 </div>
               </div>
             </div>

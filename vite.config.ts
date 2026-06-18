@@ -1,10 +1,13 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import fs from 'fs'
+import path from 'path'
 
 const telemetryQueue: any[] = [];
 const faultQueue: any[] = [];
 const commandsQueue: any[] = [];
+let lastCameraUploadTime = '';
 
 function parseBody(req: any): Promise<string> {
   return new Promise((resolve) => {
@@ -77,6 +80,42 @@ export default defineConfig({
             }));
             telemetryQueue.length = 0;
             faultQueue.length = 0;
+            return;
+          }
+
+          if (url.startsWith('/api/camera/upload') && req.method === 'POST') {
+            try {
+              const chunks: any[] = [];
+              req.on('data', (chunk: any) => {
+                chunks.push(chunk);
+              });
+              req.on('end', () => {
+                const buffer = Buffer.concat(chunks);
+                const publicDir = path.join(process.cwd(), 'public');
+                if (!fs.existsSync(publicDir)) {
+                  fs.mkdirSync(publicDir, { recursive: true });
+                }
+                const targetPath = path.join(publicDir, 'camera.jpg');
+                fs.writeFileSync(targetPath, buffer);
+                lastCameraUploadTime = new Date().toISOString();
+                
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ status: 'success', message: 'Camera photo uploaded successfully', timestamp: lastCameraUploadTime }));
+              });
+              return;
+            } catch (err: any) {
+              res.writeHead(500, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ status: 'error', message: err.message }));
+              return;
+            }
+          }
+
+          if (url.startsWith('/api/camera/status') && req.method === 'GET') {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+              lastUploadTime: lastCameraUploadTime,
+              photoExists: fs.existsSync(path.join(process.cwd(), 'public', 'camera.jpg'))
+            }));
             return;
           }
 

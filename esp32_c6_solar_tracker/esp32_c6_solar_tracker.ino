@@ -6,6 +6,7 @@
 #include <esp_arduino_version.h>
 #include <LiquidCrystal_I2C.h>
 #include <Adafruit_INA219.h>
+#include <DHT.h>
 
 // Custom crash-proof Servo implementation for ESP32-C6 (bypasses buggy ESP32Servo library)
 class Servo {
@@ -59,7 +60,7 @@ const char* faultUrl     = "https://solar-tracker-pi-jade.vercel.app/api/faults"
 const char* commandUrl   = "https://solar-tracker-pi-jade.vercel.app/api/commands/poll?device_id=";
 
 // Target Device ID registered in your website's database
-// Default for Delhi North Tracker #01: "d1e028b0-a541-4702-8c20-3354316d2cf1"
+// Default for Rajalakshmi Institute of Technology: "d1e028b0-a541-4702-8c20-3354316d2cf1"
 #define DEVICE_ID "d1e028b0-a541-4702-8c20-3354316d2cf1"
 
 // ==========================================
@@ -89,6 +90,13 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 // INA219
 // ==========================================
 Adafruit_INA219 ina219;
+
+// ==========================================
+// DHT11 Sensor
+// ==========================================
+#define DHT_PIN 4
+#define DHT_TYPE DHT11
+DHT dht(DHT_PIN, DHT_TYPE);
 
 // ==========================================
 // Servo Objects
@@ -130,6 +138,7 @@ void pollCommands();
 void runCleaningSweep();
 void performOTA(String url, String md5);
 float readTemperature();
+float readHumidity();
 
 // ==========================================
 // Setup
@@ -157,6 +166,9 @@ void setup()
     systemFaultCode = 5; // Sensor fault
     delay(2000);
   }
+
+  // DHT
+  dht.begin();
 
   // Servo setup
   horizontalServo.setPeriodHertz(50);
@@ -263,6 +275,7 @@ void loop()
   }
 
   float temp = readTemperature();
+  float humidity = readHumidity();
 
   // 4. Overheat Safety Interlocking
   if (temp > 65.0 && systemFaultCode != 3) {
@@ -296,8 +309,10 @@ void loop()
   lcd.setCursor(0, 0);
   lcd.print("V:");
   lcd.print(busVoltage, 1);
-  lcd.print(" I:");
-  lcd.print(current_mA, 0);
+  lcd.print(" T:");
+  lcd.print((int)temp);
+  lcd.print(" H:");
+  lcd.print((int)humidity);
 
   lcd.setCursor(0, 1);
   if (isAutoTracking) {
@@ -318,6 +333,62 @@ void loop()
 // ==========================================
 // Helper Functions
 // ==========================================
+
+int getJsonInt(String json, String key) {
+  int keyIdx = json.indexOf("\"" + key + "\"");
+  if (keyIdx == -1) return -999;
+  
+  int colonIdx = json.indexOf(":", keyIdx + key.length() + 2);
+  if (colonIdx == -1) return -999;
+  
+  int start = colonIdx + 1;
+  while (start < json.length() && isSpace(json.charAt(start))) {
+    start++;
+  }
+  
+  int end = start;
+  while (end < json.length() && (isDigit(json.charAt(end)) || json.charAt(end) == '-' || json.charAt(end) == '+')) {
+    end++;
+  }
+  
+  if (start == end) return -999;
+  return json.substring(start, end).toInt();
+}
+
+bool getJsonBool(String json, String key, bool defaultValue) {
+  int keyIdx = json.indexOf("\"" + key + "\"");
+  if (keyIdx == -1) return defaultValue;
+  
+  int colonIdx = json.indexOf(":", keyIdx + key.length() + 2);
+  if (colonIdx == -1) return defaultValue;
+  
+  int start = colonIdx + 1;
+  while (start < json.length() && isSpace(json.charAt(start))) {
+    start++;
+  }
+  
+  if (json.substring(start, start + 4) == "true") return true;
+  if (json.substring(start, start + 5) == "false") return false;
+  return defaultValue;
+}
+
+String getJsonString(String json, String key) {
+  int keyIdx = json.indexOf("\"" + key + "\"");
+  if (keyIdx == -1) return "";
+  
+  int colonIdx = json.indexOf(":", keyIdx + key.length() + 2);
+  if (colonIdx == -1) return "";
+  
+  int startQuote = json.indexOf("\"", colonIdx + 1);
+  if (startQuote == -1) return "";
+  
+  int endQuote = json.indexOf("\"", startQuote + 1);
+  if (endQuote == -1) return "";
+  
+  String val = json.substring(startQuote + 1, endQuote);
+  val.replace("\\/", "/"); 
+  return val;
+}
 
 void connectWiFi() {
   if (WiFi.status() == WL_CONNECTED) return;
@@ -360,9 +431,15 @@ void connectWiFi() {
 }
 
 float readTemperature() {
+  // Try reading from DHT11 first
+  float temp = dht.readTemperature();
+  if (!isnan(temp) && temp >= -20.0 && temp <= 100.0) {
+    return temp;
+  }
+
   // Read ESP32-C6 internal core temperature
   #if defined(ESP32)
-  float temp = temperatureRead();
+  temp = temperatureRead();
   if (isnan(temp) || temp < -40.0 || temp > 150.0) {
     // Return simulated ambient temp if internal read is out of bounds
     return 32.5 + random(-10, 10) / 10.0;
@@ -371,6 +448,14 @@ float readTemperature() {
   #else
   return 30.2;
   #endif
+}
+
+float readHumidity() {
+  float hum = dht.readHumidity();
+  if (isnan(hum) || hum < 0.0 || hum > 100.0) {
+    return 55.0; // fallback to 55%
+  }
+  return hum;
 }
 
 void sendTelemetry() {
@@ -399,6 +484,7 @@ void sendTelemetry() {
   float current_mA = (systemFaultCode != 5) ? ina219.getCurrent_mA() : 0.0;
   float power_mW = (systemFaultCode != 5) ? ina219.getPower_mW() : 0.0;
   float temp = readTemperature();
+  float humidity = readHumidity();
 
   // Ingested current and power are scaled to Amps and Watts for web graphing compatibility
   String json = "{";
@@ -407,6 +493,7 @@ void sendTelemetry() {
   json += "\"i\":" + String(current_mA / 1000.0, 4) + ","; 
   json += "\"p\":" + String(power_mW / 1000.0, 4) + ",";
   json += "\"temp\":" + String(temp, 1) + ",";
+  json += "\"humidity\":" + String(humidity, 1) + ",";
   json += "\"fault\":" + String(systemFaultCode) + ",";
   json += "\"ldr\":[" + String(analogRead(LDR_TL)) + "," 
                       + String(analogRead(LDR_BL)) + "," 
@@ -512,30 +599,18 @@ void pollCommands() {
       else if (action == "override") {
         Serial.println("Manual override angles received.");
         
-        isAutoTracking = (response.indexOf("\"auto\":true") != -1);
+        isAutoTracking = getJsonBool(response, "auto", true);
         
-        // Extract azimuth angle (-45 to 45)
-        int azimuthIdx = response.indexOf("\"azimuth\":");
-        if (azimuthIdx != -1) {
-          int start = azimuthIdx + 10;
-          int endComma = response.indexOf(",", start);
-          int endBracket = response.indexOf("}", start);
-          int end = (endComma != -1 && endComma < endBracket) ? endComma : endBracket;
-          int azimuth = response.substring(start, end).toInt();
+        int azimuth = getJsonInt(response, "azimuth");
+        if (azimuth != -999) {
           // Adjust horizontal servo. Negative azimuth (East) -> Larger servo angle
           servoH = constrain(90 - azimuth, H_MIN, H_MAX);
           horizontalServo.write(servoH);
           Serial.printf("Set manual horizontal servo to %d deg\n", servoH);
         }
         
-        // Extract elevation angle (0 to 90)
-        int elevationIdx = response.indexOf("\"elevation\":");
-        if (elevationIdx != -1) {
-          int start = elevationIdx + 12;
-          int endComma = response.indexOf(",", start);
-          int endBracket = response.indexOf("}", start);
-          int end = (endComma != -1 && endComma < endBracket) ? endComma : endBracket;
-          int elevation = response.substring(start, end).toInt();
+        int elevation = getJsonInt(response, "elevation");
+        if (elevation != -999) {
           servoV = constrain(elevation, V_MIN, V_MAX);
           verticalServo.write(servoV);
           Serial.printf("Set manual vertical servo to %d deg\n", servoV);
@@ -552,22 +627,8 @@ void pollCommands() {
       }
       else if (action == "calibrate") {
         // Calibrate action triggers the OTA update pipeline
-        String otaUrlStr = "";
-        int urlIdx = response.indexOf("\"ota_url\":\"");
-        if (urlIdx != -1) {
-          int start = urlIdx + 11;
-          int end = response.indexOf("\"", start);
-          otaUrlStr = response.substring(start, end);
-          otaUrlStr.replace("\\/", "/"); // Decode escaped URL characters
-        }
-
-        String md5Hash = "";
-        int md5Idx = response.indexOf("\"md5_hash\":\"");
-        if (md5Idx != -1) {
-          int start = md5Idx + 12;
-          int end = response.indexOf("\"", start);
-          md5Hash = response.substring(start, end);
-        }
+        String otaUrlStr = getJsonString(response, "ota_url");
+        String md5Hash = getJsonString(response, "md5_hash");
 
         if (otaUrlStr.length() > 0) {
           Serial.println("OTA deployment package detected. Fetching...");

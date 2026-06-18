@@ -27,6 +27,7 @@ export interface Telemetry {
   i: number;
   p: number;
   temp: number;
+  humidity?: number; // Added for DHT11 support
   fault: number;
   ldr: number[];
   timestamp: string;
@@ -35,8 +36,8 @@ export interface Telemetry {
 export interface Command {
   id: string;
   device_id: string;
-  action: 'stow' | 'clean' | 'reboot' | 'calibrate';
-  payload: any;
+  action: 'stow' | 'clean' | 'reboot' | 'calibrate' | 'override' | 'capture';
+  payload?: any;
   status: 'pending' | 'sent' | 'executed' | 'failed';
   created_by: string;
   created_at: string;
@@ -58,47 +59,14 @@ export interface Alert {
 const DEFAULT_DEVICES: Device[] = [
   {
     id: 'd1e028b0-a541-4702-8c20-3354316d2cf1',
-    name: 'Delhi North Tracker #01',
-    serial_number: 'SM-ESP32-DL01',
+    name: 'Rajalakshmi Institute of Technology',
+    serial_number: 'SM-ESP32-RIT01',
     owner_id: 'user-id-123',
-    latitude: 28.7041,
-    longitude: 77.1025,
+    latitude: 13.037945701528033,
+    longitude: 80.0448727760485,
     status: 'online',
     current_firmware_version: 'v1.0.0',
     created_at: new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString()
-  },
-  {
-    id: 'fa1c30b2-c510-4322-9213-9118c728e001',
-    name: 'Gujarat Kutch Farm #12',
-    serial_number: 'SM-ESP32-GJ12',
-    owner_id: 'user-id-123',
-    latitude: 23.8587,
-    longitude: 70.1924,
-    status: 'online',
-    current_firmware_version: 'v1.0.0',
-    created_at: new Date(Date.now() - 15 * 24 * 3600 * 1000).toISOString()
-  },
-  {
-    id: 'b3c028e2-b108-410a-8d10-4411122a001d',
-    name: 'Bangalore Innovation Hub',
-    serial_number: 'SM-ESP32-BL44',
-    owner_id: 'user-id-123',
-    latitude: 12.9716,
-    longitude: 77.5946,
-    status: 'online',
-    current_firmware_version: 'v1.0.2',
-    created_at: new Date(Date.now() - 45 * 24 * 3600 * 1000).toISOString()
-  },
-  {
-    id: 'c4d028f0-1e1b-410a-8d20-5511122b002e',
-    name: 'Chennai Coastal Array',
-    serial_number: 'SM-ESP32-CH21',
-    owner_id: 'user-id-123',
-    latitude: 13.0827,
-    longitude: 80.2707,
-    status: 'fault',
-    current_firmware_version: 'v1.0.0',
-    created_at: new Date(Date.now() - 5 * 24 * 3600 * 1000).toISOString()
   }
 ];
 
@@ -135,6 +103,18 @@ class MockDatabase {
 
       const dev = localStorage.getItem('sm_devices');
       this.devices = dev ? JSON.parse(dev) : [];
+
+      // Force state rebuild if devices list contains outdated seeds (e.g. Delhi instead of RIT)
+      if (this.devices.length > 0 && this.devices[0].name !== 'Rajalakshmi Institute of Technology') {
+        this.devices = [];
+        this.telemetry = {};
+        this.alerts = [];
+        this.commands = [];
+        localStorage.removeItem('sm_devices');
+        localStorage.removeItem('sm_telemetry');
+        localStorage.removeItem('sm_alerts');
+        localStorage.removeItem('sm_commands');
+      }
 
       const tel = localStorage.getItem('sm_telemetry');
       this.telemetry = tel ? JSON.parse(tel) : {};
@@ -179,6 +159,7 @@ class MockDatabase {
         const i = solarFactor > 0 ? 1 + solarFactor * 4 + (Math.random() * 0.4) : 0;
         const p = v * i;
         const temp = 25 + solarFactor * 25 + (Math.random() * 5);
+        const humidity = 40 + Math.random() * 30;
         const ldrBase = Math.floor(solarFactor * 3500);
 
         list.push({
@@ -188,6 +169,7 @@ class MockDatabase {
           i,
           p,
           temp,
+          humidity,
           fault: d.status === 'fault' && hour === 1 ? 3 : 0, // last one is fault if status is fault
           ldr: [
             Math.max(100, Math.floor(ldrBase + (Math.random() - 0.5) * 200)),
@@ -201,19 +183,7 @@ class MockDatabase {
       this.telemetry[d.id] = list;
     });
 
-    // Seed alert if device is in fault
-    const chennai = this.devices.find(d => d.id === 'c4d028f0-1e1b-410a-8d20-5511122b002e');
-    if (chennai) {
-      this.alerts.push({
-        id: 'alert-chennai-1',
-        device_id: chennai.id,
-        telemetry_id: this.telemetry[chennai.id][this.telemetry[chennai.id].length - 1].id,
-        severity: 'critical',
-        message: 'AI Anomaly Detected: Electrical Hotspot pinpointed on panel.',
-        is_resolved: false,
-        created_at: new Date(Date.now() - 3600 * 1000).toISOString()
-      });
-    }
+
 
     this.saveState();
   }
@@ -234,6 +204,7 @@ class MockDatabase {
       let v = 0;
       let i = 0;
       let temp = 25 + (Math.random() * 5);
+      let humidity = 45 + Math.random() * 20;
       let fault = 0;
       let ldr = [100, 100, 100, 100];
 
@@ -309,6 +280,7 @@ class MockDatabase {
         i,
         p,
         temp,
+        humidity,
         fault,
         ldr,
         timestamp: nowStr
@@ -496,6 +468,7 @@ class MockDatabase {
       i,
       p: Number(data.p ?? (v * i)),
       temp: Number(data.temp ?? 30),
+      humidity: data.humidity !== undefined ? Number(data.humidity) : undefined,
       fault: Number(data.fault ?? 0),
       ldr: data.ldr || [1000, 1000, 1000, 1000],
       timestamp: nowStr

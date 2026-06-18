@@ -123,8 +123,8 @@ const int H_MAX = 180;
 const int V_MIN = 10;
 const int V_MAX = 100;
 
-// Tracking tolerance — lowered for torch demo sensitivity (LDR diffs ~10-15 units)
-const int tolerance = 10;
+// Tracking tolerance — very low for torch demo (react to any light imbalance)
+const int tolerance = 3;
 
 // Mode control (Auto-tracking vs Remote steering override)
 bool isAutoTracking = true;
@@ -241,39 +241,38 @@ void loop()
 
   if (isAutoTracking)
   {
-    // Calculate averages (same naming convention as reference code)
+    // Calculate averages (same naming as reference code)
     int avt = (tl + tr) / 2;  // Top average
     int avd = (bl + br) / 2;  // Bottom average
     int avl = (tl + bl) / 2;  // Left average
     int avr = (tr + br) / 2;  // Right average
 
-    int dvert  = avt - avd;   // Positive = top brighter  → tilt up
-    int dhoriz = avl - avr;   // Positive = left brighter → turn left
+    int dvert  = avt - avd;   // Sign tells us which pair is brighter
+    int dhoriz = avl - avr;   // Sign tells us which pair is brighter
 
-    // --- Proportional step: bigger difference = bigger servo move ---
-    // Maps |diff| range [tolerance..400] → step [1..5] degrees
-    // Gives snappy response under torch without overshoot under real sun
+    // KEY: Lower ADC value = MORE light (LDR pull-down circuit)
+    //   dvert > 0  →  avt > avd  →  bottom has LOWER values  →  bottom is brighter  →  tilt DOWN (servoV--)
+    //   dvert < 0  →  avt < avd  →  top has LOWER values     →  top is brighter     →  tilt UP   (servoV++)
+    //   dhoriz < 0 →  avl < avr  →  left has LOWER values    →  left is brighter    →  turn LEFT (servoH--)
+    //   dhoriz > 0 →  avl > avr  →  right has LOWER values   →  right is brighter   →  turn RIGHT(servoH++)
+
+    // step = |diff| / 2, clamped to [4, 20] degrees
     auto calcStep = [](int diff) -> int {
-      int absDiff = abs(diff);
-      if (absDiff < 30)  return 1;
-      if (absDiff < 80)  return 2;
-      if (absDiff < 150) return 3;
-      if (absDiff < 250) return 4;
-      return 5;
+      return constrain(abs(diff) / 2, 4, 20);
     };
 
-    // Vertical Tracking
+    // Vertical Tracking — corrected direction
     if (abs(dvert) > tolerance) {
       int step = calcStep(dvert);
-      servoV += (dvert > 0) ? step : -step;
+      servoV += (dvert > 0) ? -step : step;  // bottom brighter → tilt DOWN; top brighter → tilt UP
       servoV = constrain(servoV, V_MIN, V_MAX);
       verticalServo.write(servoV);
     }
 
-    // Horizontal Tracking
+    // Horizontal Tracking — corrected direction
     if (abs(dhoriz) > tolerance) {
       int step = calcStep(dhoriz);
-      servoH += (dhoriz > 0) ? -step : step;  // Left brighter → decrease H angle
+      servoH += (dhoriz < 0) ? -step : step;  // left brighter → turn LEFT; right brighter → turn RIGHT
       servoH = constrain(servoH, H_MIN, H_MAX);
       horizontalServo.write(servoH);
     }
@@ -349,7 +348,7 @@ void loop()
     lcd.print(servoV);
   }
 
-  delay(10); // Fast tracking loop — matches reference dtime=10
+  delay(5); // 5ms loop — 200Hz tracking, up to 4000°/s max slew with 20° steps
 }
 
 // ==========================================

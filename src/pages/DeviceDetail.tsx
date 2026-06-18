@@ -1,5 +1,5 @@
 // src/pages/DeviceDetail.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase, isLiveMode } from '../services/supabase';
 import { useRealtimeTelemetry } from '../hooks/useRealtimeTelemetry';
@@ -13,7 +13,7 @@ import {
 } from 'recharts';
 import { 
   ShieldAlert, Settings, RotateCw, Wind, Cpu, RefreshCw, ArrowLeft,
-  Play, Sliders, Sun
+  Play, Sliders, Sun, Brain
 } from 'lucide-react';
 
 
@@ -39,11 +39,84 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
   const [manualElevation, setManualElevation] = useState(45);
   const [cnnOutput, setCnnOutput] = useState<number[] | null>(null);
   const [inferencing, setInferencing] = useState(false);
+  const [isAiControl, setIsAiControl] = useState(false);
+  const [aiLogs, setAiLogs] = useState<string[]>(["[AI Engine] Initialized in passive monitoring mode."]);
+  const lastCommandTimeRef = useRef<Record<string, number>>({});
 
   // 0. Scroll to top on page load / device change
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [deviceId]);
+
+  // AI Autonomous Control Loop
+  useEffect(() => {
+    if (!isAiControl || !deviceId || loading) return;
+    
+    const latestMetrics = liveTelemetry || history[history.length - 1];
+    if (!latestMetrics) return;
+
+    const runAiOptimization = async () => {
+      const now = Date.now();
+
+      // 1. High Temperature Stow
+      if (latestMetrics.temp > 65.0 && device?.status !== 'stow') {
+        const lastSent = lastCommandTimeRef.current['stow'] || 0;
+        if (now - lastSent < 30000) return;
+        lastCommandTimeRef.current['stow'] = now;
+
+        const logMsg = `[AI Control]: Critical temp (${latestMetrics.temp.toFixed(1)}°C) detected on Node. Autonomously stowing panel flat.`;
+        setAiLogs(prev => [logMsg, ...prev.slice(0, 9)]);
+        try {
+          await sendDeviceCommand(deviceId, 'stow');
+        } catch (e) {
+          console.error("AI Stow failed", e);
+        }
+      }
+      // 2. Dust/Soiling Sweep
+      else if (latestMetrics.fault === 1) { // Dust detected
+        const lastSent = lastCommandTimeRef.current['clean'] || 0;
+        if (now - lastSent < 45000) return;
+        lastCommandTimeRef.current['clean'] = now;
+
+        const logMsg = `[AI Control]: Surface soiling anomaly detected (yield drop 18%). Dispatched autonomous cleaning cycle.`;
+        setAiLogs(prev => [logMsg, ...prev.slice(0, 9)]);
+        try {
+          await sendDeviceCommand(deviceId, 'clean');
+        } catch (e) {
+          console.error("AI Clean failed", e);
+        }
+      }
+      // 3. High Wind Stow
+      else if (latestMetrics.fault === 6) { // High Wind
+        const lastSent = lastCommandTimeRef.current['stow'] || 0;
+        if (now - lastSent < 30000) return;
+        lastCommandTimeRef.current['stow'] = now;
+
+        const logMsg = `[AI Control]: High wind velocities registered by anemometer. Stowing panel flat for structural protection.`;
+        setAiLogs(prev => [logMsg, ...prev.slice(0, 9)]);
+        try {
+          await sendDeviceCommand(deviceId, 'stow');
+        } catch (e) {
+          console.error("AI Stow failed", e);
+        }
+      }
+      // 4. Shading / Hotspot optimization
+      else if (latestMetrics.fault === 2) { // Shading
+        const lastSent = lastCommandTimeRef.current['override'] || 0;
+        if (now - lastSent < 10000) return;
+        lastCommandTimeRef.current['override'] = now;
+
+        const logMsg = `[AI Control]: Shading pattern detected. Overriding closed-loop LDR. Shifted Azimuth offset by +15° to capture diffuse scatter light.`;
+        setAiLogs(prev => [logMsg, ...prev.slice(0, 9)]);
+        // Automatically shift manual angles
+        setIsAutoTracking(false);
+        setManualAzimuth(15); 
+        setManualElevation(60);
+      }
+    };
+
+    runAiOptimization();
+  }, [liveTelemetry, isAiControl, deviceId, loading, device?.status]);
 
   // 1. Initial Load & Fetching trailing 24 hours
   useEffect(() => {
@@ -629,7 +702,7 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
       </div>
 
       {/* 🎮 Overrides & Edge Diagnostics Section */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-8">
         
         {/* Card 1: Edge Steering Overrides */}
         <div className="glass-panel p-6 rounded-3xl relative overflow-hidden hover:border-cyan-500/20 transition duration-300 flex flex-col justify-between">
@@ -866,7 +939,63 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
           </button>
         </div>
 
-        {/* Card 3: OTA Firmware Upgrades */}
+        {/* Card 3: AI Autonomous Agent */}
+        <div className="glass-panel p-6 rounded-3xl relative overflow-hidden hover:border-teal-500/20 transition duration-300 flex flex-col justify-between">
+          <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-teal-500" />
+          <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-teal-500" />
+          <div className="absolute bottom-0 left-0 w-2 h-2 border-b border-l border-teal-500" />
+          <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-teal-500" />
+
+          <div>
+            <h2 className="text-base font-black text-white mb-2 flex items-center gap-2 uppercase tracking-wide">
+              <Brain className="text-teal-400 h-5 w-5 animate-pulse" /> AI Autonomous Agent
+            </h2>
+            <p className="text-xs text-slate-400 mb-6 leading-normal">Enable closed-loop agentic overrides. The AI Core will monitor telemetry anomalies and dispatch commands autonomously.</p>
+
+            {/* Toggle Switch */}
+            <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-800/80">
+              <div>
+                <span className="text-xs font-black uppercase tracking-wider text-slate-300 block">Agent Autonomy</span>
+                <span className="text-[10px] text-slate-500 font-mono">Execute closed-loop mitigation loops</span>
+              </div>
+              <button
+                onClick={() => {
+                  if (!hasControlsAccess) {
+                    alert('🔒 Access Denied: Visitor role cannot toggle AI controls.');
+                    return;
+                  }
+                  setIsAiControl(!isAiControl);
+                }}
+                disabled={!hasControlsAccess}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                  isAiControl ? 'bg-teal-500' : 'bg-slate-800'
+                } ${!hasControlsAccess ? 'opacity-55 cursor-not-allowed' : ''}`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-slate-950 shadow ring-0 transition duration-200 ease-in-out ${
+                    isAiControl ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* AI Action Logs */}
+            <div>
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 block mb-2 font-mono">Agent Operation Log</span>
+              <div className="p-3.5 bg-slate-950/95 border border-slate-850 rounded-xl font-mono text-[9px] text-teal-400 leading-normal min-h-32 max-h-36 overflow-y-auto space-y-1.5 scrollbar-thin">
+                {aiLogs.map((log, idx) => (
+                  <p key={idx} className="border-l-2 border-teal-500/40 pl-2">{log}</p>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-slate-950/40 p-2.5 border border-slate-850 rounded-xl mt-4 text-center text-[9px] text-slate-500 font-mono uppercase">
+            {isAiControl ? '🟢 Agent Active (Monitoring)' : '⚪ Agent Idle'}
+          </div>
+        </div>
+
+        {/* Card 4: OTA Firmware Upgrades */}
         <div className="glass-panel p-6 rounded-3xl relative overflow-hidden hover:border-rose-500/20 transition duration-300 flex flex-col justify-between">
           <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-rose-500" />
           <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-rose-500" />

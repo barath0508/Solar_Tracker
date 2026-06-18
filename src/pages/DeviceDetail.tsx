@@ -347,7 +347,7 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
       } catch (err) {
         console.error('Failed to send override command:', err);
       }
-    }, 500);
+    }, 150);
 
     return () => clearTimeout(delayDebounce);
   }, [isAutoTracking, manualAzimuth, manualElevation, deviceId, loading, userRole]);
@@ -723,7 +723,7 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
               {history.length === 0 ? (
                 <div className="h-full flex items-center justify-center text-slate-500">Connecting to telemetry stream...</div>
               ) : (
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height={320}>
                   <LineChart data={history} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
                     <defs>
                       <linearGradient id="colorPower" x1="0" y1="0" x2="0" y2="1">

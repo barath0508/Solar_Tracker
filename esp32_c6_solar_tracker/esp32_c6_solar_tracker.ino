@@ -128,7 +128,7 @@ unsigned long lastTelemetryTime = 0;
 unsigned long lastCommandPollTime = 0;
 
 const unsigned long telemetryInterval = 2000; // POST telemetry every 2s
-const unsigned long commandPollInterval = 2000; // Poll commands every 2s
+const unsigned long commandPollInterval = 500; // Poll commands every 500ms
 
 // Forward Declarations
 void connectWiFi();

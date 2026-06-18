@@ -129,8 +129,8 @@ export default defineConfig({
               let deviceCommands = commandsQueue.filter(c => c.device_id === deviceId);
               
               if (client === 'camera') {
-                // Camera client only retrieves capture commands
-                deviceCommands = deviceCommands.filter(c => c.action === 'capture');
+                // Camera client retrieves capture and reboot commands
+                deviceCommands = deviceCommands.filter(c => c.action === 'capture' || c.action === 'reboot');
               } else {
                 // Other clients (like the tracker) retrieve non-capture commands
                 deviceCommands = deviceCommands.filter(c => c.action !== 'capture');
@@ -140,7 +140,7 @@ export default defineConfig({
               for (let i = commandsQueue.length - 1; i >= 0; i--) {
                 const cmd = commandsQueue[i];
                 if (cmd.device_id === deviceId) {
-                  if (client === 'camera' && cmd.action === 'capture') {
+                  if (client === 'camera' && (cmd.action === 'capture' || cmd.action === 'reboot')) {
                     commandsQueue.splice(i, 1);
                   } else if (client !== 'camera' && cmd.action !== 'capture') {
                     commandsQueue.splice(i, 1);

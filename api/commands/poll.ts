@@ -45,8 +45,8 @@ export default async function handler(req: any, res: any) {
       .eq('status', 'pending');
 
     if (client === 'camera') {
-      // Camera client only retrieves capture commands
-      query = query.eq('action', 'capture');
+      // Camera client retrieves capture and reboot commands
+      query = query.in('action', ['capture', 'reboot']);
     } else {
       // Other clients (like the tracker) retrieve non-capture commands
       query = query.neq('action', 'capture');

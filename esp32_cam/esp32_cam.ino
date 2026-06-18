@@ -10,9 +10,18 @@
 const char* ssid = "ASHWIN";
 const char* password = "12345678"; // Replace with your actual Wi-Fi password if different
 
-// Target Vite Dev Server API Endpoint on your local machine
-const char* uploadUrl = "http://192.168.137.60:5173/api/camera/upload";
-const char* commandUrl = "http://192.168.137.60:5173/api/commands/poll?device_id=";
+// 1. Local Dev Server Settings
+const char* localHost = "http://192.168.137.60:5173";
+
+// 2. Production Vercel Server Settings (Replace with your actual deployed Vercel domain)
+// Note: If left as default/placeholder, Vercel requests will be bypassed to avoid timeout lags.
+const char* vercelHost = "https://solar-tracker-pi-jade.vercel.app";
+
+// Helper to check if Vercel server host is configured and should be used
+bool shouldUseVercel() {
+  String host = String(vercelHost);
+  return (host.length() > 0 && host.indexOf("your-vercel-project") == -1 && host.startsWith("http"));
+}
 
 // Target Device ID registered in your website's database
 #define DEVICE_ID "d1e028b0-a541-4702-8c20-3354316d2cf1"
@@ -50,8 +59,10 @@ const unsigned long commandPollInterval = 1000; // Poll commands every 1 second
 // Forward Declarations
 void connectWiFi();
 void captureAndUpload();
+void uploadJpgTo(const char* host, camera_fb_t* fb);
 void startCameraServer();
 void pollCommands();
+void pollCommandsFrom(const char* host);
 
 // ==========================================
 // Stream Handler for MJPEG
@@ -246,6 +257,39 @@ void connectWiFi() {
 // ==========================================
 // HTTP Capture & Upload Helper
 // ==========================================
+void uploadJpgTo(const char* host, camera_fb_t* fb) {
+  HTTPClient http;
+  WiFiClient client;
+  WiFiClientSecure clientSecure;
+  bool success = false;
+
+  String url = String(host) + "/api/camera/upload";
+  Serial.print("Uploading JPEG to: ");
+  Serial.println(url);
+  
+  if (url.startsWith("https://")) {
+    clientSecure.setInsecure();
+    success = http.begin(clientSecure, url);
+  } else {
+    success = http.begin(client, url);
+  }
+  
+  if (success) {
+    http.addHeader("Content-Type", "image/jpeg");
+    int httpResponseCode = http.POST(fb->buf, fb->len);
+    
+    if (httpResponseCode > 0) {
+      String response = http.getString();
+      Serial.printf("Upload success. Code: %d, Response: %s (Host: %s)\n", httpResponseCode, response.c_str(), host);
+    } else {
+      Serial.printf("Upload error. Code: %d, Message: %s (Host: %s)\n", httpResponseCode, http.errorToString(httpResponseCode).c_str(), host);
+    }
+    http.end();
+  } else {
+    Serial.printf("HTTP connection failed for: %s\n", host);
+  }
+}
+
 void captureAndUpload() {
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("Upload aborted: No Wi-Fi connection.");
@@ -259,43 +303,18 @@ void captureAndUpload() {
     return;
   }
 
-  HTTPClient http;
-  WiFiClient client;
-  WiFiClientSecure clientSecure;
-  bool success = false;
+  // Upload to local dev server
+  uploadJpgTo(localHost, fb);
 
-  Serial.print("Uploading JPEG to: ");
-  Serial.println(uploadUrl);
-  
-  if (String(uploadUrl).startsWith("https://")) {
-    clientSecure.setInsecure();
-    success = http.begin(clientSecure, uploadUrl);
-  } else {
-    success = http.begin(client, uploadUrl);
-  }
-  
-  if (success) {
-    http.addHeader("Content-Type", "image/jpeg");
-    int httpResponseCode = http.POST(fb->buf, fb->len);
-    
-    if (httpResponseCode > 0) {
-      String response = http.getString();
-      Serial.printf("Upload success. Code: %d, Response: %s\n", httpResponseCode, response.c_str());
-    } else {
-      Serial.printf("Upload error. Code: %d, Message: %s\n", httpResponseCode, http.errorToString(httpResponseCode).c_str());
-    }
-    http.end();
-  } else {
-    Serial.println("HTTP connection failed.");
+  // Upload to Vercel (if configured)
+  if (shouldUseVercel()) {
+    uploadJpgTo(vercelHost, fb);
   }
 
   esp_camera_fb_return(fb);
 }
 
-// ==========================================
-// HTTP Command Polling Helper
-// ==========================================
-void pollCommands() {
+void pollCommandsFrom(const char* host) {
   if (WiFi.status() != WL_CONNECTED) return;
 
   HTTPClient http;
@@ -303,7 +322,7 @@ void pollCommands() {
   WiFiClientSecure clientSecure;
   bool success = false;
 
-  String url = String(commandUrl) + String(DEVICE_ID) + "&client=camera";
+  String url = String(host) + "/api/commands/poll?device_id=" + String(DEVICE_ID) + "&client=camera";
 
   if (url.startsWith("https://")) {
     clientSecure.setInsecure();
@@ -313,7 +332,7 @@ void pollCommands() {
   }
 
   if (!success) {
-    Serial.println("[Commands Poll] HTTP begin failed");
+    Serial.printf("[Commands Poll] HTTP begin failed for: %s\n", host);
     return;
   }
 
@@ -321,7 +340,7 @@ void pollCommands() {
 
   if (httpCode == HTTP_CODE_OK) {
     String response = http.getString();
-    Serial.println("[Commands Poll] Response: " + response);
+    Serial.println("[Commands Poll] Response: " + response + " (Host: " + host + ")");
 
     // Parse commands using index matching (lightweight, zero dependency)
     if (response.indexOf("\"action\"") != -1) {
@@ -338,15 +357,27 @@ void pollCommands() {
         Serial.println("Capture command acknowledged. Executing capture...");
         captureAndUpload();
       }
+      else if (action == "reboot") {
+        Serial.println("Reboot command acknowledged. Resetting chip...");
+        delay(1000);
+        ESP.restart();
+      }
     }
   } else {
     // Suppress verbose connection failure logs to avoid spamming the console
     if (httpCode != -1) {
-      Serial.printf("[Commands Poll] Connection failed. HTTP: %d\n", httpCode);
+      Serial.printf("[Commands Poll] Connection failed. HTTP: %d (Host: %s)\n", httpCode, host);
     }
   }
 
   http.end();
+}
+
+void pollCommands() {
+  pollCommandsFrom(localHost);
+  if (shouldUseVercel()) {
+    pollCommandsFrom(vercelHost);
+  }
 }
 
 // ==========================================

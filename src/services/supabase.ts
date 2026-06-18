@@ -12,6 +12,50 @@ export const supabaseReal = isLiveMode
   ? createClient(supabaseUrl, supabaseAnonKey) 
   : null;
 
+// Wrap real client to forward commands locally if running in local web browser env
+const liveSupabaseWithForwarding = (isLiveMode && supabaseReal) ? new Proxy(supabaseReal, {
+  get(target, prop) {
+    if (prop === 'from') {
+      return (table: string) => {
+        const queryBuilder = target.from(table);
+        if (table === 'commands') {
+          return new Proxy(queryBuilder, {
+            get(qbTarget, qbProp) {
+              if (qbProp === 'insert') {
+                return (payload: any) => {
+                  if (typeof window !== 'undefined' && 
+                      (window.location.hostname === 'localhost' || 
+                       window.location.hostname === '127.0.0.1' || 
+                       window.location.hostname.startsWith('192.168.'))) {
+                    const payloads = Array.isArray(payload) ? payload : [payload];
+                    payloads.forEach((singlePayload: any) => {
+                      fetch('/api/commands', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          device_id: singlePayload.device_id,
+                          action: singlePayload.action,
+                          payload: singlePayload.payload || {},
+                          status: 'pending',
+                          created_at: new Date().toISOString()
+                        })
+                      }).catch(err => console.error('Failed to forward live command to local Vite API:', err));
+                    });
+                  }
+                  return qbTarget.insert(payload);
+                };
+              }
+              return (qbTarget as any)[qbProp];
+            }
+          });
+        }
+        return queryBuilder;
+      };
+    }
+    return (target as any)[prop];
+  }
+}) : null;
+
 // Mock Client API mapping to mockDb
 const mockSupabaseClient = {
   auth: {
@@ -196,5 +240,5 @@ const mockSupabaseClient = {
   }
 };
 
-export const supabase = isLiveMode ? (supabaseReal as unknown as typeof mockSupabaseClient) : mockSupabaseClient;
+export const supabase = isLiveMode ? (liveSupabaseWithForwarding as unknown as typeof mockSupabaseClient) : mockSupabaseClient;
 export default supabase;

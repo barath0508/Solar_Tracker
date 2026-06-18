@@ -53,11 +53,18 @@ public:
 const char* ssid = "POCO X6 5G";
 const char* password = "12345678";
 
-// Replace with your development machine's local IP address
-// e.g. "http://192.168.1.15:5173/api/telemetry"
-const char* telemetryUrl = "http://192.168.137.60:5173/api/telemetry";
-const char* faultUrl     = "http://192.168.137.60:5173/api/faults";
-const char* commandUrl   = "http://192.168.137.60:5173/api/commands/poll?device_id=";
+// 1. Local Dev Server Settings
+const char* localHost = "http://192.168.137.60:5173";
+
+// 2. Production Vercel Server Settings (Replace with your actual deployed Vercel domain)
+// Note: If left as default/placeholder, Vercel requests will be bypassed to avoid timeout lags.
+const char* vercelHost = "https://solar-tracker-pi-jade.vercel.app";
+
+// Helper to check if Vercel server host is configured and should be used
+bool shouldUseVercel() {
+  String host = String(vercelHost);
+  return (host.length() > 0 && host.indexOf("your-vercel-project") == -1 && host.startsWith("http"));
+}
 
 // Target Device ID registered in your website's database
 // Default for Rajalakshmi Institute of Technology: "d1e028b0-a541-4702-8c20-3354316d2cf1"
@@ -133,8 +140,11 @@ const unsigned long commandPollInterval = 500; // Poll commands every 500ms
 // Forward Declarations
 void connectWiFi();
 void sendTelemetry();
+void sendTelemetryTo(const char* host);
 void sendFaultAlert(String severity, String message);
+void sendFaultAlertTo(const char* host, String severity, String message);
 void pollCommands();
+void pollCommandsFrom(const char* host);
 void runCleaningSweep();
 void performOTA(String url, String md5);
 float readTemperature();
@@ -458,23 +468,24 @@ float readHumidity() {
   return hum;
 }
 
-void sendTelemetry() {
+void sendTelemetryTo(const char* host) {
   if (WiFi.status() != WL_CONNECTED) return;
 
   HTTPClient http;
   WiFiClient client;
   WiFiClientSecure clientSecure;
   
+  String url = String(host) + "/api/telemetry";
   bool success = false;
-  if (String(telemetryUrl).startsWith("https://")) {
+  if (url.startsWith("https://")) {
     clientSecure.setInsecure();
-    success = http.begin(clientSecure, telemetryUrl);
+    success = http.begin(clientSecure, url);
   } else {
-    success = http.begin(client, telemetryUrl);
+    success = http.begin(client, url);
   }
 
   if (!success) {
-    Serial.println("HTTP begin for telemetry failed");
+    Serial.printf("[Telemetry] HTTP begin failed for: %s\n", host);
     return;
   }
 
@@ -503,24 +514,32 @@ void sendTelemetry() {
 
   int httpCode = http.POST(json);
   String response = http.getString();
-  Serial.printf("[Telemetry] POST Code: %d, Response: %s\n", httpCode, response.c_str());
+  Serial.printf("[Telemetry] POST Code: %d, Response: %s (Host: %s)\n", httpCode, response.c_str(), host);
 
   http.end();
 }
 
-void sendFaultAlert(String severity, String message) {
+void sendTelemetry() {
+  sendTelemetryTo(localHost);
+  if (shouldUseVercel()) {
+    sendTelemetryTo(vercelHost);
+  }
+}
+
+void sendFaultAlertTo(const char* host, String severity, String message) {
   if (WiFi.status() != WL_CONNECTED) return;
 
   HTTPClient http;
   WiFiClient client;
   WiFiClientSecure clientSecure;
   
+  String url = String(host) + "/api/faults";
   bool success = false;
-  if (String(faultUrl).startsWith("https://")) {
+  if (url.startsWith("https://")) {
     clientSecure.setInsecure();
-    success = http.begin(clientSecure, faultUrl);
+    success = http.begin(clientSecure, url);
   } else {
-    success = http.begin(client, faultUrl);
+    success = http.begin(client, url);
   }
 
   if (!success) return;
@@ -535,18 +554,25 @@ void sendFaultAlert(String severity, String message) {
 
   int httpCode = http.POST(json);
   String response = http.getString();
-  Serial.printf("[Fault Alert] Status Code: %d, Response: %s\n", httpCode, response.c_str());
+  Serial.printf("[Fault Alert] Status Code: %d, Response: %s (Host: %s)\n", httpCode, response.c_str(), host);
   http.end();
 }
 
-void pollCommands() {
+void sendFaultAlert(String severity, String message) {
+  sendFaultAlertTo(localHost, severity, message);
+  if (shouldUseVercel()) {
+    sendFaultAlertTo(vercelHost, severity, message);
+  }
+}
+
+void pollCommandsFrom(const char* host) {
   if (WiFi.status() != WL_CONNECTED) return;
 
   HTTPClient http;
   WiFiClient client;
   WiFiClientSecure clientSecure;
   
-  String url = String(commandUrl) + String(DEVICE_ID);
+  String url = String(host) + "/api/commands/poll?device_id=" + String(DEVICE_ID);
   bool success = false;
   
   if (url.startsWith("https://")) {
@@ -562,7 +588,7 @@ void pollCommands() {
 
   if (httpCode == HTTP_CODE_OK) {
     String response = http.getString();
-    Serial.println("[Commands Poll] Response: " + response);
+    Serial.println("[Commands Poll] Response: " + response + " (Host: " + host + ")");
 
     // Parse commands using index matching (lightweight, zero dependency)
     if (response.indexOf("\"action\"") != -1) {
@@ -637,10 +663,20 @@ void pollCommands() {
       }
     }
   } else {
-    Serial.printf("[Commands Poll] Connection failed. HTTP: %d\n", httpCode);
+    // Suppress verbose connection failure logs to avoid spamming the console
+    if (httpCode != -1) {
+      Serial.printf("[Commands Poll] Connection failed. HTTP: %d (Host: %s)\n", httpCode, host);
+    }
   }
 
   http.end();
+}
+
+void pollCommands() {
+  pollCommandsFrom(localHost);
+  if (shouldUseVercel()) {
+    pollCommandsFrom(vercelHost);
+  }
 }
 
 void runCleaningSweep() {

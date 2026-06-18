@@ -104,9 +104,20 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
   };
 
   useEffect(() => {
+    if (isLiveMode) {
+      setLastUploadTime(new Date().toISOString());
+      return;
+    }
+
+    let intervalId: any;
     const fetchCameraStatus = async () => {
       try {
         const res = await fetch('/api/camera/status');
+        if (res.status === 404) {
+          console.warn("Camera status endpoint not found (404). Stopping polling loop.");
+          if (intervalId) clearInterval(intervalId);
+          return;
+        }
         if (res.ok) {
           const data = await res.json();
           if (data.lastUploadTime) {
@@ -118,8 +129,10 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
       }
     };
     fetchCameraStatus();
-    const interval = setInterval(fetchCameraStatus, 10000);
-    return () => clearInterval(interval);
+    intervalId = setInterval(fetchCameraStatus, 10000);
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
   }, []);
 
   const lastCommandTimeRef = useRef<Record<string, number>>({});
@@ -434,6 +447,17 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
     } catch (err: any) {
       setCommandStatus(`Error: ${err.message}`);
     }
+  };
+
+  const getCameraImgSrc = () => {
+    if (isStreaming) {
+      return `http://${camIp}/stream`;
+    }
+    if (isLiveMode) {
+      // In live production mode (Vercel), show a high-quality solar panel placeholder image to avoid 404
+      return "https://images.unsplash.com/photo-1508514177221-188b1cf16e9d?w=600&auto=format&fit=crop";
+    }
+    return `/camera.jpg?t=${refreshTrigger}-${lastUploadTime || ''}`;
   };
 
   if (loading) return (
@@ -840,35 +864,30 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
                 <div className="relative aspect-video rounded-2xl overflow-hidden border border-slate-800 bg-slate-950 flex items-center justify-center group/screen">
                   <div className="absolute inset-0 bg-grid-white/[0.02] pointer-events-none" />
                   
-                  {isStreaming ? (
-                    <img 
-                      src={`http://${camIp}/stream`} 
-                      alt="Live Stream" 
-                      className="w-full h-full object-cover"
-                      onError={() => {
+                  <img 
+                    src={getCameraImgSrc()} 
+                    alt={isStreaming ? "Live Stream" : "Last Capture"} 
+                    className="w-full h-full object-cover animate-fade-in"
+                    onError={(e) => {
+                      if (isStreaming) {
                         setIsStreaming(false);
                         alert("Failed to connect to ESP32-CAM live stream. Make sure the camera is online and your browser has local IP access to http://" + camIp);
-                      }}
-                    />
-                  ) : (
-                    <img 
-                      src={`/camera.jpg?t=${refreshTrigger}-${lastUploadTime || ''}`} 
-                      alt="Last Capture" 
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
+                      } else {
                         (e.target as any).style.display = 'none';
                         const parent = (e.target as any).parentNode;
                         const placeholder = parent.querySelector('.placeholder-text');
                         if (placeholder) placeholder.style.display = 'flex';
-                      }}
-                      onLoad={(e) => {
+                      }
+                    }}
+                    onLoad={(e) => {
+                      if (!isStreaming) {
                         (e.target as any).style.display = 'block';
                         const parent = (e.target as any).parentNode;
                         const placeholder = parent.querySelector('.placeholder-text');
                         if (placeholder) placeholder.style.display = 'none';
-                      }}
-                    />
-                  )}
+                      }
+                    }}
+                  />
                   
                   {/* Fallback Placeholder Text */}
                   <div className="placeholder-text absolute inset-0 hidden flex-col items-center justify-center text-slate-500 p-4 font-mono text-center">
@@ -892,6 +911,14 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
               {/* Camera Configurations Column */}
               <div className="md:col-span-5 flex flex-col justify-between space-y-4">
                 <div className="space-y-4">
+                  {/* Mixed Content Browser Warning Alert */}
+                  {window.location.protocol === 'https:' && (
+                    <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-[9.5px] font-mono text-rose-450 leading-relaxed">
+                      <p className="font-bold flex items-center gap-1.5 uppercase"><ShieldAlert className="h-3.5 w-3.5" /> HTTPS Mixed Content</p>
+                      <p className="mt-1">Browsers block insecure camera streams (<code className="text-white">http://</code>) inside secure sites (<code className="text-white">https://</code>). To view the live feed, please launch the website locally on HTTP (e.g. <code className="text-white">http://localhost:5173</code>) or allow insecure content in your browser site permissions.</p>
+                    </div>
+                  )}
+
                   <div className="p-4 bg-slate-950/60 border border-slate-900 rounded-2xl space-y-3">
                     <h3 className="text-xs font-black text-slate-300 uppercase font-mono tracking-wider">Stream Configuration</h3>
                     

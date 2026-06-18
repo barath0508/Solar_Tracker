@@ -92,7 +92,7 @@ export default function SolarDigitalTwin({ azimuth, elevation }: SolarDigitalTwi
         AZM: {azimuth.toFixed(0)}° | ELV: {elevation.toFixed(0)}°
       </div>
 
-      <div className="flex-grow w-full relative">
+      <div className="flex-grow w-full relative pointer-events-none">
         <Canvas camera={{ position: [0, 2.2, 3.4], fov: 45 }}>
           <ambientLight intensity={0.65} />
           <directionalLight position={[10, 15, 10]} intensity={1.8} castShadow={true} />

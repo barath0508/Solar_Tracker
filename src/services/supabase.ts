@@ -111,27 +111,23 @@ const mockSupabaseClient = {
       },
       insert: (payload: any) => {
         const singlePayload = Array.isArray(payload) ? payload[0] : payload;
-        const p = Promise.resolve({ data: [], error: null });
+        let insertedData: any = null;
+        if (table === 'commands') {
+          insertedData = mockDb.insertCommand(singlePayload.device_id, singlePayload.action, singlePayload.payload);
+        } else if (table === 'devices') {
+          insertedData = mockDb.addDevice(singlePayload);
+        }
+
+        const p = Promise.resolve({ data: insertedData ? [insertedData] : [], error: null });
         return Object.assign(p, {
-          select: () => ({
-            single: async () => {
-              if (table === 'commands') {
-                const cmd = mockDb.insertCommand(singlePayload.device_id, singlePayload.action, singlePayload.payload);
-                // Forward command to Vite dev server API so that physical device can poll it
-                fetch('/api/commands', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify(cmd)
-                }).catch(err => console.error('Failed to forward command to Vite API:', err));
-                return { data: cmd, error: null };
+          select: () => {
+            const pSelect = Promise.resolve({ data: insertedData ? [insertedData] : [], error: null });
+            return Object.assign(pSelect, {
+              single: async () => {
+                return { data: insertedData, error: null };
               }
-              if (table === 'devices') {
-                const dev = mockDb.addDevice(payload);
-                return { data: dev, error: null };
-              }
-              return { data: null, error: { message: 'Insert not implemented' } };
-            }
-          })
+            });
+          }
         });
       },
       update: (payload: any) => {

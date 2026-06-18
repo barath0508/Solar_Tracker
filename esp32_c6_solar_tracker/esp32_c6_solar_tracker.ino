@@ -185,9 +185,27 @@ void setup()
 // ==========================================
 void loop()
 {
-  // 1. Maintain Wi-Fi Connection
+  // 1. Maintain Wi-Fi Connection (Non-blocking background reconnect)
+  static unsigned long lastWifiCheck = 0;
   if (WiFi.status() != WL_CONNECTED) {
-    connectWiFi();
+    static unsigned long lastLcdUpdate = 0;
+    if (millis() - lastLcdUpdate >= 5000) {
+      lastLcdUpdate = millis();
+      lcd.clear();
+      lcd.print("WiFi Offline");
+      lcd.setCursor(0, 1);
+      lcd.print("Reconnecting...");
+    }
+    
+    if (lastWifiCheck == 0 || millis() - lastWifiCheck >= 15000) {
+      lastWifiCheck = millis();
+      Serial.println("Wi-Fi disconnected. Reconnecting in background...");
+      WiFi.disconnect(false);
+      delay(50);
+      WiFi.begin(ssid, password);
+    }
+  } else {
+    lastWifiCheck = 0; // Reset check timer once connected
   }
 
   // 2. Perform closed-loop tracking if in AUTO mode
@@ -303,6 +321,10 @@ void loop()
 
 void connectWiFi() {
   if (WiFi.status() == WL_CONNECTED) return;
+  
+  // Ensure we terminate any active background connection attempts first
+  WiFi.disconnect(false);
+  delay(100);
   
   Serial.print("Connecting to Wi-Fi SSID: ");
   Serial.println(ssid);

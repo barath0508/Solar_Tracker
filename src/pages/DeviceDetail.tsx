@@ -40,6 +40,11 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
   const [cnnOutput, setCnnOutput] = useState<number[] | null>(null);
   const [inferencing, setInferencing] = useState(false);
 
+  // 0. Scroll to top on page load / device change
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [deviceId]);
+
   // 1. Initial Load & Fetching trailing 24 hours
   useEffect(() => {
     async function fetchDeviceData() {
@@ -242,11 +247,24 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
     </div>
   );
 
-  const currentMetrics = liveTelemetry || history[history.length - 1] || { v: 0, i: 0, p: 0, temp: 0, fault: 0, ldr: [0,0,0,0], id: 0 };
+  const rawMetrics = liveTelemetry || history[history.length - 1] || { v: 0, i: 0, p: 0, temp: 0, fault: 0, ldr: [0,0,0,0], id: 0 };
   
+  const currentMetrics = {
+    v: typeof rawMetrics.v === 'number' ? rawMetrics.v : 0,
+    i: typeof rawMetrics.i === 'number' ? rawMetrics.i : 0,
+    p: typeof rawMetrics.p === 'number' ? rawMetrics.p : 0,
+    temp: typeof rawMetrics.temp === 'number' ? rawMetrics.temp : 0,
+    fault: typeof rawMetrics.fault === 'number' ? rawMetrics.fault : 0,
+    ldr: Array.isArray(rawMetrics.ldr) ? rawMetrics.ldr : [0, 0, 0, 0],
+    id: typeof rawMetrics.id === 'number' ? rawMetrics.id : 0,
+  };
+
+  const safeLdr = [...currentMetrics.ldr];
+  while (safeLdr.length < 4) safeLdr.push(0);
+
   // Calculate dynamic Panel Angle relative to Horizon
-  const leftAvg = (currentMetrics.ldr[0] + currentMetrics.ldr[1]) / 2;
-  const rightAvg = (currentMetrics.ldr[2] + currentMetrics.ldr[3]) / 2;
+  const leftAvg = (safeLdr[0] + safeLdr[1]) / 2;
+  const rightAvg = (safeLdr[2] + safeLdr[3]) / 2;
   const calculatedPanelAngle = Math.max(-45, Math.min(45, (leftAvg - rightAvg) * 0.05));
 
   const panelAngle = isAutoTracking ? calculatedPanelAngle : manualAzimuth;
@@ -425,12 +443,12 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
               {history.length === 0 ? (
                 <div className="h-full flex items-center justify-center text-slate-500">Connecting to telemetry stream...</div>
               ) : (
-                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                   <LineChart data={history} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" />
                     <XAxis 
                       dataKey="timestamp" 
-                      tickFormatter={(t) => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                      tickFormatter={(t) => t ? new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : ''}
                       stroke="#475569" 
                       style={{ fontSize: '9px' }}
                     />
@@ -438,7 +456,7 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
                     <YAxis yAxisId="right" orientation="right" stroke="#f43f5e" style={{ fontSize: '9px' }} />
                     <Tooltip 
                       contentStyle={{ backgroundColor: '#020617', borderColor: 'rgba(6, 182, 212, 0.2)', color: '#fff', fontSize: '11px', borderRadius: '12px' }} 
-                      labelFormatter={(l) => new Date(l).toLocaleTimeString()} 
+                      labelFormatter={(l) => l ? new Date(l).toLocaleTimeString() : ''} 
                     />
                     <Legend wrapperStyle={{ fontSize: '10px', paddingTop: '10px' }} />
                     <Line yAxisId="left" type="monotone" dataKey="p" name="Power (W)" stroke="#06b6d4" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />

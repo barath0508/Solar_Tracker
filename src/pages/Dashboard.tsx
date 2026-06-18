@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { mockDb } from '../services/mockDb';
 import type { Device, Telemetry } from '../services/mockDb';
+import { supabase, isLiveMode } from '../services/supabase';
 import { 
   Activity, ChevronRight, Plus, Map, Wind, RotateCw, Cpu, Check, ShieldAlert, Sliders
 } from 'lucide-react';
@@ -33,19 +34,58 @@ export default function Dashboard({ userRole }: DashboardProps) {
 
     setCommandStatus(`Dispatching group command: ${action}...`);
     try {
-      if (action === 'resolve_all') {
-        const activeAlerts = mockDb.getAlerts().filter(a => !a.is_resolved);
-        activeAlerts.forEach(a => {
-          mockDb.resolveAlert(a.id);
-        });
-        setCommandStatus('All active fleet anomalies have been cleared.');
+      if (!isLiveMode) {
+        if (action === 'resolve_all') {
+          const activeAlerts = mockDb.getAlerts().filter(a => !a.is_resolved);
+          activeAlerts.forEach(a => {
+            mockDb.resolveAlert(a.id);
+          });
+          setCommandStatus('All active fleet anomalies have been cleared.');
+        } else {
+          devices.forEach(dev => {
+            if (dev.status !== 'offline') {
+              mockDb.insertCommand(dev.id, action, { invoked_by: 'fleet-operator@suryamitra.in', scope: 'fleet-group' });
+            }
+          });
+          setCommandStatus(`Group command "${action.toUpperCase()}" successfully dispatched to all active trackers.`);
+        }
       } else {
-        devices.forEach(dev => {
-          if (dev.status !== 'offline') {
-            mockDb.insertCommand(dev.id, action, { invoked_by: 'fleet-operator@suryamitra.in', scope: 'fleet-group' });
+        if (action === 'resolve_all') {
+          // Resolve all active alerts in Supabase
+          const { error } = await supabase
+            .from('alerts')
+            .update({ is_resolved: true, resolved_at: new Date().toISOString() })
+            .eq('is_resolved', false);
+          
+          if (error) throw error;
+          
+          // Also set faulted devices back to online status
+          const { error: devError } = await supabase
+            .from('devices')
+            .update({ status: 'online' })
+            .eq('status', 'fault');
+
+          if (devError) throw devError;
+
+          setCommandStatus('All active fleet anomalies have been cleared.');
+        } else {
+          // Dispatch command row to commands table for each active online device
+          const commandsToInsert = devices
+            .filter(d => d.status !== 'offline')
+            .map(d => ({
+              device_id: d.id,
+              action: action,
+              payload: { invoked_by: 'fleet-operator@suryamitra.in', scope: 'fleet-group' },
+              status: 'pending',
+              created_at: new Date().toISOString()
+            }));
+
+          if (commandsToInsert.length > 0) {
+            const { error } = await supabase.from('commands').insert(commandsToInsert);
+            if (error) throw error;
           }
-        });
-        setCommandStatus(`Group command "${action.toUpperCase()}" successfully dispatched to all active trackers.`);
+          setCommandStatus(`Group command "${action.toUpperCase()}" successfully dispatched to all active trackers.`);
+        }
       }
 
       setTimeout(() => {
@@ -92,7 +132,7 @@ export default function Dashboard({ userRole }: DashboardProps) {
       devices.forEach(d => {
         const markerColor = d.status === 'online' ? '#10b981' : d.status === 'fault' ? '#f59e0b' : '#64748b';
         const latestTel = telemetry[d.id]?.[telemetry[d.id].length - 1];
-        const powerVal = latestTel ? latestTel.p : 0;
+        const powerVal = (latestTel && typeof latestTel.p === 'number') ? latestTel.p : 0;
 
         const customIcon = L.divIcon({
           className: 'custom-marker-container',
@@ -145,32 +185,109 @@ export default function Dashboard({ userRole }: DashboardProps) {
   }, [devices, telemetry, navigate]);
 
   useEffect(() => {
-    const syncData = () => {
-      setDevices([...mockDb.getDevices()]);
-      const telMap: Record<string, Telemetry[]> = {};
-      mockDb.getDevices().forEach(d => {
-        telMap[d.id] = mockDb.getTelemetry(d.id);
-      });
-      setTelemetry(telMap);
-    };
+    if (!isLiveMode) {
+      const syncData = () => {
+        setDevices([...mockDb.getDevices()]);
+        const telMap: Record<string, Telemetry[]> = {};
+        mockDb.getDevices().forEach(d => {
+          telMap[d.id] = mockDb.getTelemetry(d.id);
+        });
+        setTelemetry(telMap);
+      };
 
-    syncData();
-    const unsubscribe = mockDb.subscribe(syncData);
-    return () => unsubscribe();
+      syncData();
+      const unsubscribe = mockDb.subscribe(syncData);
+      return () => unsubscribe();
+    } else {
+      async function fetchFleetData() {
+        const { data: devList } = await (supabase as any)
+          .from('devices')
+          .select('*')
+          .order('created_at', { ascending: true });
+          
+        if (devList) {
+          setDevices(devList as any);
+          
+          const telMap: Record<string, Telemetry[]> = {};
+          await Promise.all(devList.map(async (d: any) => {
+            const { data: telList } = await (supabase as any)
+              .from('telemetry')
+              .select('*')
+              .eq('device_id', d.id)
+              .order('timestamp', { ascending: false })
+              .limit(50);
+            
+            if (telList) {
+              telMap[d.id] = [...telList].reverse();
+            } else {
+              telMap[d.id] = [];
+            }
+          }));
+          setTelemetry(telMap);
+        }
+      }
+
+      fetchFleetData();
+
+      // Subscribe to real-time telemetry updates for all trackers
+      const telChannel = supabase
+        .channel('realtime-fleet-telemetry')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'telemetry' }, (payload) => {
+          const newTel = payload.new as Telemetry;
+          setTelemetry(prev => {
+            const list = prev[newTel.device_id] || [];
+            if (list.length > 0 && list[list.length - 1].timestamp === newTel.timestamp) return prev;
+            return {
+              ...prev,
+              [newTel.device_id]: [...list.slice(-49), newTel]
+            };
+          });
+        })
+        .subscribe();
+
+      // Subscribe to device additions/status updates
+      const devChannel = supabase
+        .channel('realtime-fleet-devices')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'devices' }, () => {
+          fetchFleetData();
+        })
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(telChannel);
+        supabase.removeChannel(devChannel);
+      };
+    }
   }, []);
 
-  const handleAddDevice = (e: React.FormEvent) => {
+  const handleAddDevice = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newDevName || !newDevSerial) return;
     
-    mockDb.addDevice({
-      name: newDevName,
-      serial_number: newDevSerial,
-      latitude: parseFloat(newDevLat),
-      longitude: parseFloat(newDevLng),
-      status: 'online',
-      current_firmware_version: 'v1.0.0'
-    });
+    if (!isLiveMode) {
+      mockDb.addDevice({
+        name: newDevName,
+        serial_number: newDevSerial,
+        latitude: parseFloat(newDevLat),
+        longitude: parseFloat(newDevLng),
+        status: 'online',
+        current_firmware_version: 'v1.0.0'
+      });
+    } else {
+      const { error } = await supabase.from('devices').insert({
+        name: newDevName,
+        serial_number: newDevSerial,
+        latitude: parseFloat(newDevLat),
+        longitude: parseFloat(newDevLng),
+        status: 'online',
+        current_firmware_version: 'v1.0.0'
+      });
+
+      if (error) {
+        alert(`Failed to add device: ${(error as any).message}`);
+        return;
+      }
+    }
 
     setNewDevName('');
     setNewDevSerial('');
@@ -188,7 +305,7 @@ export default function Dashboard({ userRole }: DashboardProps) {
     const list = telemetry[d.id] || [];
     const latest = list[list.length - 1];
     if (latest && d.status === 'online') {
-      totalPowerToday += latest.p;
+      totalPowerToday += latest.p || 0;
     }
   });
 
@@ -307,8 +424,8 @@ export default function Dashboard({ userRole }: DashboardProps) {
                 {devices.map(d => {
                   const telList = telemetry[d.id] || [];
                   const latest = telList[telList.length - 1];
-                  const power = latest ? latest.p : 0;
-                  const tempVal = latest ? latest.temp : 25;
+                  const power = (latest && typeof latest.p === 'number') ? latest.p : 0;
+                  const tempVal = (latest && typeof latest.temp === 'number') ? latest.temp : 25;
 
                   return (
                     <button

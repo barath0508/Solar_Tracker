@@ -417,6 +417,14 @@ class MockDatabase {
 
     this.commands.unshift(newCmd);
     this.saveState();
+
+    // Forward command to Vite dev server API so that physical device can poll it
+    fetch('/api/commands', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newCmd)
+    }).catch(err => console.error('Failed to forward command to Vite API:', err));
+
     return newCmd;
   }
 

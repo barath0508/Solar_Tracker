@@ -170,7 +170,16 @@ void setup()
   Serial.begin(115200);
 
   // Initialize Hardware Watchdog Timer (10 seconds timeout)
+#if defined(ESP_ARDUINO_VERSION) && ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
+  esp_task_wdt_config_t wdt_config = {
+    .timeout_ms = 10000,
+    .idle_core_mask = (1 << portNUM_PROCESSORS) - 1,    // Bitmask of all cores
+    .trigger_panic = true,
+  };
+  esp_task_wdt_init(&wdt_config);
+#else
   esp_task_wdt_init(10, true);
+#endif
   esp_task_wdt_add(NULL);
 
   // Initialize Anemometer Interrupt
@@ -485,7 +494,7 @@ void connectWiFi() {
   
   // Ensure we terminate any active background connection attempts first
   WiFi.disconnect(false);
-  delay(100);
+  delay(10);
   
   Serial.print("Connecting to Wi-Fi SSID: ");
   Serial.println(ssid);
@@ -495,29 +504,8 @@ void connectWiFi() {
   lcd.setCursor(0, 1);
   lcd.print(ssid);
 
+  // Start Wi-Fi connection in the background without blocking the main thread
   WiFi.begin(ssid, password);
-  
-  int attempts = 0;
-  while (WiFi.status() != WL_CONNECTED && attempts < 25) {
-    delay(500);
-    Serial.print(".");
-    attempts++;
-  }
-  
-  if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("\nWi-Fi Connected!");
-    Serial.print("Local IP Address: ");
-    Serial.println(WiFi.localIP());
-    lcd.clear();
-    lcd.print("WiFi Connected");
-    lcd.setCursor(0, 1);
-    lcd.print(WiFi.localIP());
-  } else {
-    Serial.println("\nWi-Fi connection failed.");
-    lcd.clear();
-    lcd.print("WiFi Fail!");
-  }
-  delay(1000);
 }
 
 float readTemperature() {

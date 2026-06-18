@@ -292,15 +292,15 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
     }
   }, [liveTelemetry]);
 
-  // Poll custom API server middleware for physical device telemetry streams (local mock mode only)
+  // Poll custom API server middleware for physical device telemetry streams (works in both local and live/Vercel modes)
   useEffect(() => {
-    if (!deviceId || isLiveMode) return;
+    if (!deviceId) return;
     const interval = setInterval(async () => {
       try {
         const res = await fetch('/api/telemetry/poll');
         if (res.status === 404) {
           clearInterval(interval);
-          console.warn('⚠️ Backend API polling endpoint returned 404. Disabling local polling loop.');
+          console.warn('⚠️ Backend API polling endpoint returned 404. Disabling polling loop.');
           return;
         }
         if (res.ok) {
@@ -308,7 +308,13 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
           if (data.telemetry && data.telemetry.length > 0) {
             data.telemetry.forEach((t: any) => {
               if (t.device_id === deviceId) {
+                // Inject into mockDb for local mode
                 mockDb.injectExternalTelemetry(deviceId, t);
+                // Also directly update live history so KPI cards refresh in all modes
+                setHistory(prev => {
+                  if (prev.length > 0 && prev[prev.length - 1].timestamp === t.timestamp) return prev;
+                  return [...prev.slice(-48), t];
+                });
               }
             });
           }
@@ -321,7 +327,7 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
           }
         }
       } catch (err) {
-        console.error('API polling stream offline', err);
+        // Silently swallow — expected when no local server running in pure Vercel mode
       }
     }, 2000);
     return () => clearInterval(interval);

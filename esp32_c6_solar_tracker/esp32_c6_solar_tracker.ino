@@ -497,6 +497,24 @@ void sendTelemetryTo(const char* host) {
   float temp = readTemperature();
   float humidity = readHumidity();
 
+  int ldr_tl = analogRead(LDR_TL);
+  int ldr_bl = analogRead(LDR_BL);
+  int ldr_tr = analogRead(LDR_TR);
+  int ldr_br = analogRead(LDR_BR);
+
+  // ---- Serial Monitor Live Readings ----
+  Serial.println(F("========= SENSOR READINGS ========="));
+  Serial.printf("  Voltage   : %.2f V\n", busVoltage);
+  Serial.printf("  Current   : %.2f mA (%.4f A)\n", current_mA, current_mA / 1000.0);
+  Serial.printf("  Power     : %.2f mW (%.4f W)\n", power_mW, power_mW / 1000.0);
+  Serial.printf("  Temp      : %.1f C\n", temp);
+  Serial.printf("  Humidity  : %.1f %%\n", humidity);
+  Serial.printf("  LDR TL/BL/TR/BR: %d / %d / %d / %d\n", ldr_tl, ldr_bl, ldr_tr, ldr_br);
+  Serial.printf("  Fault Code: %d | Mode: %s\n", systemFaultCode, isAutoTracking ? "AUTO" : "MANUAL");
+  Serial.printf("  Servo H/V : %d / %d\n", servoH, servoV);
+  Serial.printf("  Target    : %s\n", host);
+  Serial.println(F("==================================="));
+
   // Ingested current and power are scaled to Amps and Watts for web graphing compatibility
   String json = "{";
   json += "\"device_id\":\"" + String(DEVICE_ID) + "\",";
@@ -506,10 +524,10 @@ void sendTelemetryTo(const char* host) {
   json += "\"temp\":" + String(temp, 1) + ",";
   json += "\"humidity\":" + String(humidity, 1) + ",";
   json += "\"fault\":" + String(systemFaultCode) + ",";
-  json += "\"ldr\":[" + String(analogRead(LDR_TL)) + "," 
-                      + String(analogRead(LDR_BL)) + "," 
-                      + String(analogRead(LDR_TR)) + "," 
-                      + String(analogRead(LDR_BR)) + "]";
+  json += "\"ldr\":[" + String(ldr_tl) + "," 
+                      + String(ldr_bl) + "," 
+                      + String(ldr_tr) + "," 
+                      + String(ldr_br) + "]";
   json += "}";
 
   int httpCode = http.POST(json);

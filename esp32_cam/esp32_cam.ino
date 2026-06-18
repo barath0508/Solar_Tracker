@@ -113,8 +113,8 @@ esp_err_t stream_handler(httpd_req_t *req){
     if(res != ESP_OK){
       break;
     }
-    // Limit frame rate a bit
-    delay(50);
+    // Limit frame rate a bit (5ms delay for fast, smooth streaming)
+    delay(5);
   }
   return res;
 }
@@ -172,14 +172,14 @@ void setup() {
   config.xclk_freq_hz = 20000000;
   config.pixel_format = PIXFORMAT_JPEG;
   
-  // Select frame size and quality
+  // Select frame size and quality (optimized for speed/size)
   if(psramFound()){
-    config.frame_size = FRAMESIZE_UXGA; // 1600x1200
-    config.jpeg_quality = 10;
-    config.fb_count = 2;
+    config.frame_size = FRAMESIZE_VGA;  // Allocate max frame size as VGA to optimize memory heap
+    config.jpeg_quality = 20;           // Lower quality value (18-24) to reduce JPEG size for faster WiFi transfer
+    config.fb_count = 2;                // Use double buffering for high-frame-rate stream
   } else {
-    config.frame_size = FRAMESIZE_SVGA; // 800x600
-    config.jpeg_quality = 12;
+    config.frame_size = FRAMESIZE_CIF;  // Non-PSRAM uses smaller memory buffer
+    config.jpeg_quality = 24;
     config.fb_count = 1;
   }
 
@@ -191,7 +191,8 @@ void setup() {
   }
 
   sensor_t * s = esp_camera_sensor_get();
-  s->set_framesize(s, FRAMESIZE_VGA); // 640x480 for fast streaming
+  s->set_framesize(s, FRAMESIZE_VGA);  // VGA streaming resolution
+  s->set_quality(s, 20);              // High compression value (20) reduces image size and cuts down transfer lags
 
   // Connect to WiFi
   connectWiFi();

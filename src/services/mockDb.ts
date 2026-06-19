@@ -503,6 +503,30 @@ class MockDatabase {
     return newDev;
   }
 
+  // Returns estimated energy generated today (Wh) for a device
+  public getEnergyToday(deviceId: string): number {
+    const list = this.telemetry[deviceId] || [];
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const todayRows = list.filter(t => new Date(t.timestamp) >= todayStart);
+    if (todayRows.length < 2) return 0;
+
+    let totalWh = 0;
+    for (let i = 1; i < todayRows.length; i++) {
+      const dtMs = new Date(todayRows[i].timestamp).getTime() - new Date(todayRows[i - 1].timestamp).getTime();
+      const dtHr = dtMs / 3_600_000;
+      const avgP = (todayRows[i].p + todayRows[i - 1].p) / 2;
+      totalWh += avgP * dtHr;
+    }
+    return totalWh;
+  }
+
+  // Total fleet energy today in Wh
+  public getTotalFleetEnergyToday(): number {
+    return this.devices.reduce((sum, d) => sum + this.getEnergyToday(d.id), 0);
+  }
+
   public subscribe(cb: () => void): () => void {
     this.listeners.add(cb);
     return () => {

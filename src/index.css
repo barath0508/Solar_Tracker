@@ -1,140 +1,355 @@
 @import "tailwindcss";
 @import "leaflet/dist/leaflet.css";
 
-/* Cyber-Solar HUD Animations & Keyframes */
+/* ============================================================
+   CYBER-SOLAR HUD — AadhavanAI Global Stylesheet
+   Light Theme | Glassmorphism | Animated KPIs
+   ============================================================ */
+
+/* Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+/* ────────────────────────────────────
+   KEYFRAME ANIMATIONS
+──────────────────────────────────── */
+
 @keyframes spin-slow {
   from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  to   { transform: rotate(360deg); }
 }
-.animate-spin-slow {
-  animation: spin-slow 25s linear infinite;
-}
+.animate-spin-slow { animation: spin-slow 25s linear infinite; }
 
 @keyframes radar-pulse {
-  0% { transform: scale(0.9); opacity: 0.15; }
-  50% { opacity: 0.6; }
+  0%   { transform: scale(0.9); opacity: 0.15; }
+  50%  { opacity: 0.6; }
   100% { transform: scale(2.4); opacity: 0; }
 }
-.animate-radar-pulse {
-  animation: radar-pulse 3s cubic-bezier(0.1, 0.8, 0.3, 1) infinite;
-}
+.animate-radar-pulse { animation: radar-pulse 3s cubic-bezier(0.1, 0.8, 0.3, 1) infinite; }
 
 @keyframes scanline {
-  0% { transform: translateY(-100%); }
+  0%   { transform: translateY(-100%); }
   100% { transform: translateY(100%); }
 }
-.animate-scanline {
-  animation: scanline 8s linear infinite;
+.animate-scanline { animation: scanline 8s linear infinite; }
+
+/* Smooth fade-in-up for modals / panels */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in-up { animation: fade-in-up 0.35s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* Slide in from bottom for toasts */
+@keyframes slide-in-bottom {
+  from { opacity: 0; transform: translateY(40px) scale(0.95); }
+  to   { opacity: 1; transform: translateY(0)   scale(1); }
+}
+.animate-slide-in-bottom { animation: slide-in-bottom 0.3s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* Horizontal progress bar fill */
+@keyframes bar-fill {
+  from { width: 0%; }
+  to   { width: var(--bar-target); }
+}
+.animate-bar-fill { animation: bar-fill 1s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* Gradient text animation */
+@keyframes gradient-shift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.animate-gradient-text {
+  background-size: 200% auto;
+  animation: gradient-shift 4s ease infinite;
 }
 
-/* Base Body settings - Light Theme */
+/* Pulsing glow ring */
+@keyframes glow-ring {
+  0%, 100% { box-shadow: 0 0 8px rgba(6,182,212,0.2); }
+  50%       { box-shadow: 0 0 24px rgba(6,182,212,0.5); }
+}
+.animate-glow-ring { animation: glow-ring 2.5s ease-in-out infinite; }
+
+/* Typing cursor blink */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+.animate-blink { animation: blink 1s step-end infinite; }
+
+/* Bounce in */
+@keyframes bounce-in {
+  0%   { transform: scale(0.6); opacity: 0; }
+  60%  { transform: scale(1.05); opacity: 1; }
+  100% { transform: scale(1); }
+}
+.animate-bounce-in { animation: bounce-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* Shimmer skeleton */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.animate-shimmer {
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* ────────────────────────────────────
+   BASE BODY
+──────────────────────────────────── */
+
+*, *::before, *::after { box-sizing: border-box; }
+
 body {
   margin: 0;
-  background-color: #f8fafc; /* Slate 50 */
-  color: #1e293b; /* Slate 800 */
+  background-color: #f8fafc;
+  color: #1e293b;
   font-family: 'Outfit', ui-sans-serif, system-ui, -apple-system, sans-serif;
   overflow-x: hidden;
-  
-  /* Cyber Grid Background (Light) */
-  background-image: 
-    radial-gradient(circle at 50% 0%, rgba(249, 115, 22, 0.04) 0%, transparent 60%),
-    radial-gradient(circle at 10% 90%, rgba(6, 182, 212, 0.03) 0%, transparent 50%),
-    radial-gradient(circle at 90% 80%, rgba(99, 102, 241, 0.03) 0%, transparent 40%),
-    linear-gradient(rgba(15, 23, 42, 0.012) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(15, 23, 42, 0.012) 1px, transparent 1px);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  /* Subtle cyber-grid background */
+  background-image:
+    radial-gradient(circle at 50% 0%,   rgba(249,115,22,0.04)  0%, transparent 60%),
+    radial-gradient(circle at 10% 90%,  rgba(6,182,212,0.03)   0%, transparent 50%),
+    radial-gradient(circle at 90% 80%,  rgba(99,102,241,0.03)  0%, transparent 40%),
+    linear-gradient(rgba(15,23,42,0.012) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15,23,42,0.012) 1px, transparent 1px);
   background-size: 100% 100%, 100% 100%, 100% 100%, 40px 40px, 40px 40px;
 }
 
 code, pre, .font-mono {
-  font-family: 'JetBrains Mono', monospace !important;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace !important;
 }
 
-/* Frosted Cockpit Glass Panels - Light Theme */
+/* ────────────────────────────────────
+   GLASSMORPHISM COMPONENTS
+──────────────────────────────────── */
+
 .glass-panel {
-  background: rgba(255, 255, 255, 0.75);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.04);
+  background: rgba(255,255,255,0.82);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(15,23,42,0.08);
+  box-shadow: 0 8px 32px 0 rgba(0,0,0,0.04), 0 1px 0 rgba(255,255,255,0.8) inset;
 }
 
 .glass-card {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(248, 250, 252, 0.9) 100%);
+  background: linear-gradient(135deg, rgba(255,255,255,0.88) 0%, rgba(248,250,252,0.92) 100%);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(15, 23, 42, 0.06);
+  border: 1px solid rgba(15,23,42,0.07);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
-
 .glass-card:hover {
-  border-color: rgba(6, 182, 212, 0.35);
-  box-shadow: 0 10px 30px rgba(6, 182, 212, 0.06);
+  border-color: rgba(6,182,212,0.35);
+  box-shadow: 0 12px 36px rgba(6,182,212,0.07);
   transform: translateY(-2px);
 }
 
-/* Glass inputs - Light Theme */
+/* Toast / notification overlay */
+.glass-toast {
+  background: rgba(255,255,255,0.95);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(15,23,42,0.1);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.12), 0 1px 0 rgba(255,255,255,0.9) inset;
+}
+
+/* ────────────────────────────────────
+   INPUT COMPONENTS
+──────────────────────────────────── */
+
 .glass-input {
-  background: rgba(255, 255, 255, 0.95);
-  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: rgba(255,255,255,0.95);
+  border: 1px solid rgba(15,23,42,0.12);
   color: #1e293b !important;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .glass-input:focus {
-  border-color: rgba(6, 182, 212, 0.5);
-  box-shadow: 0 0 15px rgba(6, 182, 212, 0.08);
+  border-color: rgba(6,182,212,0.5);
+  box-shadow: 0 0 0 3px rgba(6,182,212,0.08), 0 0 12px rgba(6,182,212,0.06);
   background: #ffffff;
+  outline: none;
+}
+.glass-input.error {
+  border-color: rgba(239,68,68,0.5) !important;
+  box-shadow: 0 0 0 3px rgba(239,68,68,0.08) !important;
 }
 
-/* Glowing Neon Elements - Adjusted for Light Theme Contrast */
+/* ────────────────────────────────────
+   NEON / GLOW UTILITIES
+──────────────────────────────────── */
+
 .neon-border-cyan {
-  box-shadow: 0 0 15px rgba(6, 182, 212, 0.08);
-  border-color: rgba(6, 182, 212, 0.4) !important;
+  box-shadow: 0 0 15px rgba(6,182,212,0.1);
+  border-color: rgba(6,182,212,0.4) !important;
 }
 .neon-border-gold {
-  box-shadow: 0 0 15px rgba(245, 158, 11, 0.1);
-  border-color: rgba(245, 158, 11, 0.4) !important;
+  box-shadow: 0 0 15px rgba(245,158,11,0.1);
+  border-color: rgba(245,158,11,0.4) !important;
+}
+.neon-border-emerald {
+  box-shadow: 0 0 15px rgba(16,185,129,0.1);
+  border-color: rgba(16,185,129,0.4) !important;
 }
 
-.text-glow-cyan {
-  text-shadow: 0 0 4px rgba(6, 182, 212, 0.25);
+.text-glow-cyan   { text-shadow: 0 0 5px rgba(6,182,212,0.3); }
+.text-glow-gold   { text-shadow: 0 0 5px rgba(245,158,11,0.3); }
+.text-glow-solar  { text-shadow: 0 0 8px rgba(249,115,22,0.35), 0 0 2px rgba(234,179,8,0.5); }
+.text-glow-emerald { text-shadow: 0 0 5px rgba(16,185,129,0.3); }
+
+/* ────────────────────────────────────
+   STATUS INDICATORS
+──────────────────────────────────── */
+
+.status-online  { color: #059669; }
+.status-fault   { color: #d97706; }
+.status-offline { color: #64748b; }
+
+.status-dot-online  { background-color: #10b981; }
+.status-dot-fault   { background-color: #f59e0b; animation: pulse 1.5s ease-in-out infinite; }
+.status-dot-offline { background-color: #94a3b8; }
+
+/* ────────────────────────────────────
+   CNN INFERENCE BAR CHART
+──────────────────────────────────── */
+
+.cnn-bar-track {
+  background: rgba(15,23,42,0.06);
+  border-radius: 999px;
+  overflow: hidden;
+  height: 6px;
 }
-.text-glow-gold {
-  text-shadow: 0 0 4px rgba(245, 158, 11, 0.25);
+.cnn-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* Leaflet Overrides */
+/* ────────────────────────────────────
+   PROGRESS / OTA UPLOAD BAR
+──────────────────────────────────── */
+
+.ota-progress-track {
+  background: rgba(6,182,212,0.1);
+  border: 1px solid rgba(6,182,212,0.2);
+  border-radius: 999px;
+  overflow: hidden;
+  height: 8px;
+}
+.ota-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #0891b2, #10b981);
+  border-radius: 999px;
+  transition: width 0.3s ease;
+  box-shadow: 0 0 8px rgba(6,182,212,0.3);
+}
+
+/* ────────────────────────────────────
+   TOAST NOTIFICATION
+──────────────────────────────────── */
+
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+}
+
+/* ────────────────────────────────────
+   LEAFLET MAP OVERRIDES
+──────────────────────────────────── */
+
 .custom-leaflet-popup .leaflet-popup-content-wrapper {
   background: transparent !important;
   box-shadow: none !important;
   border: 0 !important;
   padding: 0 !important;
 }
-.custom-leaflet-popup .leaflet-popup-tip-container {
-  display: none !important;
-}
+.custom-leaflet-popup .leaflet-popup-tip-container { display: none !important; }
 
-/* Webkit scrollbar customization */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: #f1f5f9;
-}
-::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #0891b2;
-}
+/* ────────────────────────────────────
+   SCROLLBAR STYLING
+──────────────────────────────────── */
 
-/* Aadhavan Solar Pulse / Sun Core - Light Theme */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #0891b2; }
+
+/* Firefox */
+* { scrollbar-width: thin; scrollbar-color: #cbd5e1 #f1f5f9; }
+
+/* ────────────────────────────────────
+   AADHAVAN SOLAR BRAND ELEMENTS
+──────────────────────────────────── */
+
 .aadhavan-sun-glow {
-  box-shadow: 0 0 40px rgba(249, 115, 22, 0.12);
-  border-color: rgba(249, 115, 22, 0.3) !important;
+  box-shadow: 0 0 48px rgba(249,115,22,0.14);
+  border-color: rgba(249,115,22,0.28) !important;
 }
 
-.text-glow-solar {
-  text-shadow: 0 0 6px rgba(249, 115, 22, 0.3), 0 0 1px rgba(234, 179, 8, 0.5);
+/* Confirmation modal overlay */
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15,23,42,0.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+/* Data table row hover */
+.data-row { transition: background-color 0.15s ease; }
+.data-row:hover { background-color: rgba(6,182,212,0.03); }
+
+/* Recharts custom tooltip */
+.recharts-custom-tooltip {
+  background: white;
+  border: 1px solid rgba(15,23,42,0.08);
+  border-radius: 12px;
+  padding: 10px 14px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+}
+
+/* Accordion toggle arrow */
+.accordion-icon { transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+.accordion-icon.open { transform: rotate(180deg); }
+
+/* Pipeline connector */
+.pipeline-connector {
+  position: absolute;
+  right: -16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(6,182,212,0.4), rgba(6,182,212,0.1));
+  z-index: 10;
+}
+.pipeline-connector::after {
+  content: '';
+  position: absolute;
+  right: -4px;
+  top: -3px;
+  width: 8px;
+  height: 8px;
+  border-top: 2px solid rgba(6,182,212,0.5);
+  border-right: 2px solid rgba(6,182,212,0.5);
+  transform: rotate(45deg);
 }

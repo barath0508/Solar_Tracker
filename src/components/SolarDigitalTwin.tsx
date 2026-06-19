@@ -81,14 +81,14 @@ function PanelAssembly({ azimuth, elevation }: PanelAssemblyProps) {
 
 export default function SolarDigitalTwin({ azimuth, elevation }: SolarDigitalTwinProps) {
   return (
-    <div className="w-full h-full min-h-[260px] bg-slate-950/65 rounded-2xl overflow-hidden relative border border-cyan-500/10 flex flex-col justify-between">
+    <div className="w-full h-full min-h-[260px] bg-white rounded-2xl overflow-hidden relative border border-slate-200 flex flex-col justify-between shadow-sm">
       {/* HUD Header */}
-      <div className="absolute top-3 left-3 text-[9px] font-mono text-cyan-400/80 uppercase tracking-widest pointer-events-none z-10 font-black flex items-center gap-1.5 text-glow-cyan">
-        <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse" />
+      <div className="absolute top-3 left-3 text-[9px] font-mono text-cyan-600 uppercase tracking-widest pointer-events-none z-10 font-black flex items-center gap-1.5">
+        <span className="h-1.5 w-1.5 rounded-full bg-cyan-500 animate-pulse" />
         IoT Digital Twin Port v1D
       </div>
       
-      <div className="absolute bottom-3 right-3 text-[8.5px] font-mono text-slate-500 pointer-events-none z-10 tracking-widest uppercase">
+      <div className="absolute bottom-3 right-3 text-[8.5px] font-mono text-slate-400 pointer-events-none z-10 tracking-widest uppercase">
         AZM: {azimuth.toFixed(0)}° | ELV: {elevation.toFixed(0)}°
       </div>
 
@@ -101,7 +101,7 @@ export default function SolarDigitalTwin({ azimuth, elevation }: SolarDigitalTwi
           {/* Stand Assembly */}
           <group position={[0, -0.6, 0]}>
             {/* Ground grid coordinate helper */}
-            <gridHelper args={[4, 12, "#06b6d4", "#1e293b"]} position={[0, -0.04, 0]} />
+            <gridHelper args={[4, 12, "#0891b2", "#cbd5e1"]} position={[0, -0.04, 0]} />
 
             {/* Vertical mounting stand pillar */}
             <mesh position={[0, 0.35, 0]}>

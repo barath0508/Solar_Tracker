@@ -27,21 +27,21 @@
   animation: scanline 8s linear infinite;
 }
 
-/* Base Body settings */
+/* Base Body settings - Light Theme */
 body {
   margin: 0;
-  background-color: #030712; /* Space Black */
-  color: #f1f5f9;
+  background-color: #f8fafc; /* Slate 50 */
+  color: #1e293b; /* Slate 800 */
   font-family: 'Outfit', ui-sans-serif, system-ui, -apple-system, sans-serif;
   overflow-x: hidden;
   
-  /* Cyber Grid Background */
+  /* Cyber Grid Background (Light) */
   background-image: 
-    radial-gradient(circle at 50% 0%, rgba(249, 115, 22, 0.09) 0%, transparent 60%),
-    radial-gradient(circle at 10% 90%, rgba(6, 182, 212, 0.04) 0%, transparent 50%),
-    radial-gradient(circle at 90% 80%, rgba(245, 158, 11, 0.04) 0%, transparent 40%),
-    linear-gradient(rgba(255, 255, 255, 0.007) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.007) 1px, transparent 1px);
+    radial-gradient(circle at 50% 0%, rgba(249, 115, 22, 0.04) 0%, transparent 60%),
+    radial-gradient(circle at 10% 90%, rgba(6, 182, 212, 0.03) 0%, transparent 50%),
+    radial-gradient(circle at 90% 80%, rgba(99, 102, 241, 0.03) 0%, transparent 40%),
+    linear-gradient(rgba(15, 23, 42, 0.012) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.012) 1px, transparent 1px);
   background-size: 100% 100%, 100% 100%, 100% 100%, 40px 40px, 40px 40px;
 }
 
@@ -49,56 +49,57 @@ code, pre, .font-mono {
   font-family: 'JetBrains Mono', monospace !important;
 }
 
-/* Frosted Cockpit Glass Panels */
+/* Frosted Cockpit Glass Panels - Light Theme */
 .glass-panel {
-  background: rgba(10, 15, 30, 0.7);
+  background: rgba(255, 255, 255, 0.75);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.04);
 }
 
 .glass-card {
-  background: linear-gradient(135deg, rgba(15, 23, 42, 0.6) 0%, rgba(10, 15, 30, 0.8) 100%);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(248, 250, 252, 0.9) 100%);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(15, 23, 42, 0.06);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .glass-card:hover {
-  border-color: rgba(6, 182, 212, 0.25);
-  box-shadow: 0 10px 30px rgba(6, 182, 212, 0.05);
+  border-color: rgba(6, 182, 212, 0.35);
+  box-shadow: 0 10px 30px rgba(6, 182, 212, 0.06);
   transform: translateY(-2px);
 }
 
-/* Glass inputs */
+/* Glass inputs - Light Theme */
 .glass-input {
-  background: rgba(2, 6, 23, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  color: #1e293b !important;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .glass-input:focus {
-  border-color: rgba(6, 182, 212, 0.45);
-  box-shadow: 0 0 15px rgba(6, 182, 212, 0.15);
-  background: rgba(2, 6, 23, 0.95);
+  border-color: rgba(6, 182, 212, 0.5);
+  box-shadow: 0 0 15px rgba(6, 182, 212, 0.08);
+  background: #ffffff;
 }
 
-/* Glowing Neon Elements */
+/* Glowing Neon Elements - Adjusted for Light Theme Contrast */
 .neon-border-cyan {
-  box-shadow: 0 0 15px rgba(6, 182, 212, 0.2);
-  border-color: rgba(6, 182, 212, 0.35) !important;
+  box-shadow: 0 0 15px rgba(6, 182, 212, 0.08);
+  border-color: rgba(6, 182, 212, 0.4) !important;
 }
 .neon-border-gold {
-  box-shadow: 0 0 15px rgba(245, 158, 11, 0.2);
-  border-color: rgba(245, 158, 11, 0.35) !important;
+  box-shadow: 0 0 15px rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.4) !important;
 }
 
 .text-glow-cyan {
-  text-shadow: 0 0 8px rgba(6, 182, 212, 0.5);
+  text-shadow: 0 0 4px rgba(6, 182, 212, 0.25);
 }
 .text-glow-gold {
-  text-shadow: 0 0 8px rgba(245, 158, 11, 0.5);
+  text-shadow: 0 0 4px rgba(245, 158, 11, 0.25);
 }
 
 /* Leaflet Overrides */
@@ -118,22 +119,22 @@ code, pre, .font-mono {
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #030712;
+  background: #f1f5f9;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1f2937;
+  background: #cbd5e1;
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #06b6d4;
+  background: #0891b2;
 }
 
-/* Aadhavan Solar Pulse / Sun Core */
+/* Aadhavan Solar Pulse / Sun Core - Light Theme */
 .aadhavan-sun-glow {
-  box-shadow: 0 0 40px rgba(249, 115, 22, 0.15);
-  border-color: rgba(249, 115, 22, 0.25) !important;
+  box-shadow: 0 0 40px rgba(249, 115, 22, 0.12);
+  border-color: rgba(249, 115, 22, 0.3) !important;
 }
 
 .text-glow-solar {
-  text-shadow: 0 0 10px rgba(249, 115, 22, 0.65), 0 0 2px rgba(234, 179, 8, 0.85);
+  text-shadow: 0 0 6px rgba(249, 115, 22, 0.3), 0 0 1px rgba(234, 179, 8, 0.5);
 }

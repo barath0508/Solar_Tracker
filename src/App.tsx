@@ -29,7 +29,7 @@ function App() {
 
   return (
     <HashRouter>
-      <div className="flex flex-col min-h-screen bg-slate-950 text-slate-100">
+      <div className="flex flex-col min-h-screen bg-slate-50 text-slate-850">
         
         {/* Navbar */}
         <Navbar userRole={userRole} onRoleChange={handleRoleChange} />
@@ -50,17 +50,17 @@ function App() {
         </main>
 
         {/* 📋 Footer */}
-        <footer className="bg-slate-950 border-t border-slate-900 py-12 px-6 text-slate-500 text-xs">
+        <footer className="bg-slate-100 border-t border-slate-200 py-12 px-6 text-slate-500 text-xs">
           <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="space-y-1.5 text-center md:text-left">
-              <p className="font-extrabold text-slate-400">AADHAVAN AI SOLAR TRACKER GRID</p>
+              <p className="font-extrabold text-slate-750">AADHAVAN AI SOLAR TRACKER GRID</p>
               <p>Designed and engineered in India. Solar yield lift of up to 30% via dual-axis embedded calculations.</p>
             </div>
 
-            <div className="flex gap-6 text-slate-400 font-medium">
-              <a href="#/" className="hover:text-amber-400 transition">Disclaimer</a>
-              <a href="#/" className="hover:text-amber-400 transition">Privacy Policy</a>
-              <a href="#/" className="hover:text-amber-400 transition">Terms of Service</a>
+            <div className="flex gap-6 text-slate-500 font-medium">
+              <a href="#/" className="hover:text-amber-600 transition">Disclaimer</a>
+              <a href="#/" className="hover:text-amber-600 transition">Privacy Policy</a>
+              <a href="#/" className="hover:text-amber-600 transition">Terms of Service</a>
             </div>
 
             <p>© {new Date().getFullYear()} AadhavanAI Technologies. All rights reserved.</p>

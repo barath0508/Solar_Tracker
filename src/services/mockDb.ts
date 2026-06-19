@@ -18,6 +18,7 @@ export interface Device {
   status: 'online' | 'offline' | 'maintenance' | 'fault';
   current_firmware_version: string;
   created_at: string;
+  activeFaultCode?: number;
 }
 
 export interface Telemetry {
@@ -209,11 +210,46 @@ class MockDatabase {
       let ldr = [100, 100, 100, 100];
 
       if (d.status === 'fault') {
-        fault = 3; // Hotspot fault
-        v = 6.8;
-        i = 1.2;
-        temp = 68.2; // overheat
-      } else if (stowed) {
+        fault = (d as any).activeFaultCode !== undefined ? (d as any).activeFaultCode : 3;
+        if (fault === 1) { // Dust/Soiling
+          v = solarFactor > 0 ? 10.5 + (Math.random() * 0.5) : 0;
+          i = solarFactor > 0 ? 2.5 + (Math.random() * 0.2) : 0;
+          temp = 32.5 + (Math.random() * 2);
+        } else if (fault === 2) { // Shading / Bird droppings
+          v = solarFactor > 0 ? 8.2 + (Math.random() * 0.4) : 0;
+          i = solarFactor > 0 ? 1.8 + (Math.random() * 0.2) : 0;
+          temp = 29.8 + (Math.random() * 1.5);
+        } else if (fault === 3) { // Hotspot / Micro-cracks
+          v = solarFactor > 0 ? 6.8 + (Math.random() * 0.3) : 0;
+          i = solarFactor > 0 ? 1.2 + (Math.random() * 0.1) : 0;
+          temp = 68.2 + (Math.random() * 3); // overheat
+        } else if (fault === 4) { // Actuator motor blockage
+          v = solarFactor > 0 ? 13.5 + (Math.random() * 0.5) : 0;
+          i = 0.05 + (Math.random() * 0.02);
+          temp = 45.0 + (Math.random() * 2);
+        } else if (fault === 6) { // Wind safe stow
+          v = solarFactor > 0 ? 5.2 + (Math.random() * 0.3) : 0;
+          i = solarFactor > 0 ? 0.4 + (Math.random() * 0.05) : 0;
+          temp = 27.2 + (Math.random() * 1);
+        } else if (fault === 7) { // Open Circuit Fault
+          v = solarFactor > 0 ? 15.6 + (Math.random() - 0.5) : 0;
+          i = 0;
+          temp = 28.5 + (Math.random() * 2);
+        } else if (fault === 8) { // Closed Circuit Fault
+          v = 0;
+          i = solarFactor > 0 ? 3.5 + (Math.random() * 0.4) : 0;
+          temp = 34.2 + (Math.random() * 2);
+        } else if (fault === 9) { // Solar Panel Fault
+          v = 0;
+          i = 0;
+          temp = 26.5 + (Math.random() * 2);
+        } else {
+          v = solarFactor > 0 ? 6.8 + (Math.random() * 0.3) : 0;
+          i = solarFactor > 0 ? 1.2 + (Math.random() * 0.1) : 0;
+          temp = 68.2 + (Math.random() * 3);
+        }
+      }
+ else if (stowed) {
         // Safe stowed mode
         v = solarFactor > 0 ? 5 + (Math.random() * 2) : 0;
         i = solarFactor > 0 ? 0.5 : 0;
@@ -244,9 +280,11 @@ class MockDatabase {
 
       // AI Anomaly Generator (2.5% chance per tick for active nodes to trigger a fault class)
       if (d.status === 'online' && Math.random() < 0.025) {
-        const randomFault = Math.floor(Math.random() * 6) + 1; // classes 1-6
+        const faultOptions = [1, 2, 3, 4, 6, 7, 8, 9];
+        const randomFault = faultOptions[Math.floor(Math.random() * faultOptions.length)];
         fault = randomFault;
         d.status = 'fault';
+        (d as any).activeFaultCode = randomFault;
         
         // Add critical temperature check
         if (Math.random() < 0.3) {
@@ -309,6 +347,9 @@ class MockDatabase {
       case 4: return 'AI Anomaly Detected: Servo motor blockage / mechanical obstruction.';
       case 5: return 'AI Anomaly Detected: Differential LDR Sensor failure.';
       case 6: return 'AI Anomaly Detected: High-velocity winds. Safe stow active.';
+      case 7: return 'AI Anomaly Detected: Open Circuit Fault (current is zero while voltage remains positive).';
+      case 8: return 'AI Anomaly Detected: Closed Circuit Fault (voltage is zero while current is drawn).';
+      case 9: return 'AI Anomaly Detected: Solar Panel Fault (both voltage and current are zero).';
       default: return 'Edge anomaly detected.';
     }
   }
@@ -336,6 +377,18 @@ class MockDatabase {
             if (c.payload?.version) {
               targetDev.current_firmware_version = c.payload.version;
               targetDev.status = 'online';
+            }
+          } else if (c.action === 'clean') {
+            if (targetDev.status === 'fault') {
+              targetDev.status = 'online';
+              (targetDev as any).activeFaultCode = 0;
+              // Mark corresponding alerts as resolved
+              this.alerts.forEach(a => {
+                if (a.device_id === targetDev.id && !a.is_resolved) {
+                  a.is_resolved = true;
+                  a.resolved_at = new Date().toISOString();
+                }
+              });
             }
           }
         }

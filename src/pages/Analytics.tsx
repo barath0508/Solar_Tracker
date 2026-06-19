@@ -61,24 +61,27 @@ export default function Analytics() {
 
   // 2. Anomaly Fault Distribution Pie Chart
   const anomalyData = [
-    { name: 'Dust Cover', value: 42, color: '#f59e0b' },     // Amber
-    { name: 'Shading', value: 18, color: '#3b82f6' },        // Blue
-    { name: 'Hotspots', value: 12, color: '#f43f5e' },       // Rose
-    { name: 'Motor Blocks', value: 15, color: '#a855f7' },   // Purple
-    { name: 'Sensor Fault', value: 8, color: '#64748b' },    // Slate
-    { name: 'Wind Stow', value: 5, color: '#10b981' }        // Emerald
+    { name: 'Dust Cover', value: 35, color: '#d97706' },     // Amber 600
+    { name: 'Shading', value: 15, color: '#2563eb' },        // Blue 600
+    { name: 'Hotspots', value: 10, color: '#e11d48' },       // Rose 600
+    { name: 'Motor Blocks', value: 12, color: '#7c3aed' },   // Purple 600
+    { name: 'Sensor Fault', value: 6, color: '#475569' },    // Slate 600
+    { name: 'Wind Stow', value: 4, color: '#059669' },       // Emerald 600
+    { name: 'Open Circuit', value: 8, color: '#db2777' },    // Pink 600
+    { name: 'Closed Circuit', value: 5, color: '#be123c' },  // Rose 700
+    { name: 'Panel Failure', value: 5, color: '#dc2626' }    // Red 600
   ];
 
   return (
-    <div className="relative min-h-screen bg-slate-950 p-8 font-sans">
+    <div className="relative min-h-screen bg-slate-50 p-8 font-sans">
       {/* Background radial glows */}
-      <div className="absolute top-20 right-20 h-[320px] w-[320px] bg-cyan-500/5 rounded-full blur-3xl -z-10 animate-pulse" style={{ animationDuration: '7s' }} />
-      <div className="absolute bottom-20 left-20 h-[320px] w-[320px] bg-amber-500/5 rounded-full blur-3xl -z-10 animate-pulse" style={{ animationDuration: '9s' }} />
+      <div className="absolute top-20 right-20 h-[320px] w-[320px] bg-cyan-500/10 rounded-full blur-3xl -z-10 animate-pulse" style={{ animationDuration: '7s' }} />
+      <div className="absolute bottom-20 left-20 h-[320px] w-[320px] bg-amber-500/10 rounded-full blur-3xl -z-10 animate-pulse" style={{ animationDuration: '9s' }} />
 
       {/* 🔝 Title */}
-      <div className="mb-8 pb-6 border-b border-slate-800/60 relative">
-        <h1 className="text-3xl font-black text-white tracking-tighter uppercase text-glow-cyan">Analytics Studio</h1>
-        <p className="text-cyan-400 font-mono text-[10px] tracking-widest mt-1.5 uppercase">SYS_ANALYTICS_YIELD_AND_FAULT_METRIC_ENGINE</p>
+      <div className="mb-8 pb-6 border-b border-slate-200 relative">
+        <h1 className="text-3xl font-black text-slate-900 tracking-tighter uppercase">Analytics Studio</h1>
+        <p className="text-cyan-600 font-mono text-[10px] tracking-widest mt-1.5 uppercase">SYS_ANALYTICS_YIELD_AND_FAULT_METRIC_ENGINE</p>
       </div>
 
       {/* 📊 Aggregates Banner */}
@@ -86,23 +89,23 @@ export default function Analytics() {
         <div className="glass-panel p-6 rounded-2xl flex items-center justify-between hover:border-cyan-500/20 transition relative group">
           <div className="space-y-1">
             <span className="text-[9px] text-slate-500 uppercase font-black tracking-wider font-mono">Net Fleet Generation (Weekly)</span>
-            <p className="text-3xl font-black text-white tracking-tighter">351.9 <span className="text-xs text-slate-500 font-normal font-sans">kWh</span></p>
+            <p className="text-3xl font-black text-slate-900 tracking-tighter">351.9 <span className="text-xs text-slate-500 font-normal font-sans">kWh</span></p>
           </div>
-          <TrendingUp className="h-8 w-8 text-emerald-400 opacity-60 text-glow-cyan" />
+          <TrendingUp className="h-8 w-8 text-emerald-600 opacity-80" />
         </div>
         <div className="glass-panel p-6 rounded-2xl flex items-center justify-between hover:border-cyan-500/20 transition relative group">
           <div className="space-y-1">
             <span className="text-[9px] text-slate-500 uppercase font-black tracking-wider font-mono">Tracking Efficiency Lift</span>
-            <p className="text-3xl font-black text-emerald-400 tracking-tighter text-glow-cyan">+{percentGain.toFixed(1)}%</p>
+            <p className="text-3xl font-black text-emerald-600 tracking-tighter">+{percentGain.toFixed(1)}%</p>
           </div>
-          <BarChart2 className="h-8 w-8 text-cyan-400 opacity-60 text-glow-cyan" />
+          <BarChart2 className="h-8 w-8 text-cyan-600 opacity-80" />
         </div>
         <div className="glass-panel p-6 rounded-2xl flex items-center justify-between hover:border-rose-500/20 transition relative group border-l-2 border-l-rose-500">
           <div className="space-y-1">
             <span className="text-[9px] text-slate-500 uppercase font-black tracking-wider font-mono">Total Anomalies Handled</span>
-            <p className="text-3xl font-black text-rose-400 tracking-tighter text-glow-rose">{alerts.length}</p>
+            <p className="text-3xl font-black text-rose-600 tracking-tighter">{alerts.length}</p>
           </div>
-          <ShieldAlert className="h-8 w-8 text-rose-400 opacity-60 text-glow-rose" />
+          <ShieldAlert className="h-8 w-8 text-rose-600 opacity-80" />
         </div>
       </div>
 
@@ -117,22 +120,22 @@ export default function Analytics() {
           <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-cyan-500" />
 
           <div className="mb-6">
-            <h2 className="text-base font-black text-white flex items-center gap-2 uppercase tracking-wide">
-              <BarChart2 className="text-cyan-400 h-4.5 w-4.5" /> Energy Yield Comparison
+            <h2 className="text-base font-black text-slate-900 flex items-center gap-2 uppercase tracking-wide">
+              <BarChart2 className="text-cyan-600 h-4.5 w-4.5" /> Energy Yield Comparison
             </h2>
-            <p className="text-xs text-slate-400 mt-0.5">Yield comparisons between dual-axis tracking and fixed tilt setups (kWh).</p>
+            <p className="text-xs text-slate-500 mt-0.5">Yield comparisons between dual-axis tracking and fixed tilt setups (kWh).</p>
           </div>
           
           <div className="h-72 w-full font-mono text-xs">
             <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <BarChart data={yieldData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" />
-                <XAxis dataKey="name" stroke="#475569" style={{ fontSize: '10px' }} />
-                <YAxis stroke="#475569" style={{ fontSize: '10px' }} />
-                <Tooltip contentStyle={{ backgroundColor: '#020617', borderColor: 'rgba(6, 182, 212, 0.2)', color: '#fff', fontSize: '11px', borderRadius: '12px' }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.05)" />
+                <XAxis dataKey="name" stroke="#64748b" style={{ fontSize: '10px' }} />
+                <YAxis stroke="#64748b" style={{ fontSize: '10px' }} />
+                <Tooltip contentStyle={{ backgroundColor: '#ffffff', borderColor: '#cbd5e1', color: '#0f172a', fontSize: '11px', borderRadius: '12px' }} />
                 <Legend wrapperStyle={{ fontSize: '10px', paddingTop: '10px' }} />
-                <Bar dataKey="Tracker" fill="#06b6d4" radius={[4, 4, 0, 0]} name="Dynamic Tracker" />
-                <Bar dataKey="Fixed" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Fixed-Axis Plane" />
+                <Bar dataKey="Tracker" fill="#0891b2" radius={[4, 4, 0, 0]} name="Dynamic Tracker" />
+                <Bar dataKey="Fixed" fill="#2563eb" radius={[4, 4, 0, 0]} name="Fixed-Axis Plane" />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -146,10 +149,10 @@ export default function Analytics() {
           <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-amber-500" />
 
           <div className="mb-6">
-            <h2 className="text-base font-black text-white flex items-center gap-2 uppercase tracking-wide">
-              <PieIcon className="text-amber-400 h-4.5 w-4.5" /> AI-Classified Anomaly Ratios
+            <h2 className="text-base font-black text-slate-900 flex items-center gap-2 uppercase tracking-wide">
+              <PieIcon className="text-amber-600 h-4.5 w-4.5" /> AI-Classified Anomaly Ratios
             </h2>
-            <p className="text-xs text-slate-400 mt-0.5">Distributions of fault anomalies identified by our 1D CNN model.</p>
+            <p className="text-xs text-slate-500 mt-0.5">Distributions of fault anomalies identified by our 1D CNN model.</p>
           </div>
 
           <div className="flex flex-col md:flex-row items-center gap-4 justify-around py-4">
@@ -176,11 +179,11 @@ export default function Analytics() {
             {/* Legends List Grid */}
             <div className="grid grid-cols-2 gap-x-5 gap-y-3.5 text-left w-full md:w-auto">
               {anomalyData.map((entry, idx) => (
-                <div key={idx} className="flex items-center gap-2 bg-slate-950/45 p-2 rounded-xl border border-slate-900 min-w-36">
+                <div key={idx} className="flex items-center gap-2 bg-slate-100 p-2 rounded-xl border border-slate-200 min-w-36">
                   <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: entry.color }} />
                   <div>
                     <span className="text-[9px] text-slate-500 block font-black uppercase font-mono tracking-wider leading-none">{entry.name}</span>
-                    <strong className="text-xs text-white mt-1 block font-mono">{entry.value}%</strong>
+                    <strong className="text-xs text-slate-800 mt-1 block font-mono">{entry.value}%</strong>
                   </div>
                 </div>
               ))}
@@ -198,15 +201,15 @@ export default function Analytics() {
         <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-cyan-500" />
 
         <div className="mb-6">
-          <h2 className="text-base font-black text-white flex items-center gap-2 uppercase tracking-wide">
-            <FileText className="text-cyan-400 h-4.5 w-4.5 text-glow-cyan" /> Diagnostic Incident Log
+          <h2 className="text-base font-black text-slate-900 flex items-center gap-2 uppercase tracking-wide">
+            <FileText className="text-cyan-600 h-4.5 w-4.5" /> Diagnostic Incident Log
           </h2>
-          <p className="text-xs text-slate-400 mt-0.5">Trace historic warning and critical anomalies logs triggered by AI classifiers.</p>
+          <p className="text-xs text-slate-500 mt-0.5">Trace historic warning and critical anomalies logs triggered by AI classifiers.</p>
         </div>
 
-        <div className="overflow-x-auto border border-slate-850 rounded-2xl bg-slate-950/40">
+        <div className="overflow-x-auto border border-slate-200 rounded-2xl bg-white shadow-sm">
           <table className="w-full text-xs text-left">
-            <thead className="bg-slate-950/80 text-slate-500 font-black uppercase text-[9px] border-b border-slate-850 tracking-widest font-mono">
+            <thead className="bg-slate-100 text-slate-655 font-black uppercase text-[9px] border-b border-slate-200 tracking-widest font-mono">
               <tr>
                 <th className="p-4">Alert ID</th>
                 <th className="p-4">Device</th>
@@ -216,7 +219,7 @@ export default function Analytics() {
                 <th className="p-4">State</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-850 font-medium font-sans">
+            <tbody className="divide-y divide-slate-200 font-medium font-sans">
               {alerts.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="p-8 text-center text-slate-500 font-mono uppercase tracking-wider text-[10px]">No warnings or critical alerts registered in this simulation session.</td>
@@ -225,25 +228,25 @@ export default function Analytics() {
                 alerts.map(a => {
                   const dev = devices.find(d => d.id === a.device_id);
                   return (
-                    <tr key={a.id} className="hover:bg-cyan-500/5 transition duration-150">
+                    <tr key={a.id} className="hover:bg-slate-50 transition duration-150">
                       <td className="p-4 font-mono text-slate-500">{a.id.substring(0, 10)}...</td>
-                      <td className="p-4 text-white font-black uppercase tracking-wider">{dev?.name || 'Unknown Node'}</td>
+                      <td className="p-4 text-slate-900 font-black uppercase tracking-wider">{dev?.name || 'Unknown Node'}</td>
                       <td className="p-4">
                         <span className={`px-2.5 py-1 rounded-md text-[9px] font-black uppercase font-mono border ${
-                          a.severity === 'critical' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20 text-glow-rose' : 'bg-amber-500/10 text-amber-400 border-amber-500/20 text-glow-gold'
+                          a.severity === 'critical' ? 'bg-rose-50 text-rose-700 border-rose-100' : 'bg-amber-50 text-amber-700 border-amber-100'
                         }`}>
                           {a.severity}
                         </span>
                       </td>
-                      <td className="p-4 text-slate-300 leading-normal">{a.message}</td>
+                      <td className="p-4 text-slate-700 leading-normal">{a.message}</td>
                       <td className="p-4 text-slate-500 font-mono">{new Date(a.created_at).toLocaleString()}</td>
                       <td className="p-4">
                         {a.is_resolved ? (
-                          <span className="flex items-center gap-1.5 text-emerald-400 text-[10px] font-black font-mono uppercase">
+                          <span className="flex items-center gap-1.5 text-emerald-600 text-[10px] font-black font-mono uppercase">
                             <CheckCircle className="h-3.5 w-3.5" /> Resolved
                           </span>
                         ) : (
-                          <span className="flex items-center gap-1.5 text-amber-400 text-[10px] font-black font-mono uppercase animate-pulse">
+                          <span className="flex items-center gap-1.5 text-amber-600 text-[10px] font-black font-mono uppercase animate-pulse">
                             <ShieldAlert className="h-3.5 w-3.5" /> Active
                           </span>
                         )}

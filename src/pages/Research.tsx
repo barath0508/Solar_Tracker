@@ -40,7 +40,9 @@ export default function Research() {
       doi: "10.1016/j.solmat.2025.112450",
       summary: "Analyzes high-side current measurements to identify localized hot-spot resistance spikes and triggers preventative stow angles."
     }
-  ]  return (
+  ];
+
+  return (
     <div className="relative min-h-screen bg-slate-55 py-16 px-6">
       <div className="absolute top-1/4 left-1/4 h-[350px] w-[350px] bg-amber-500/10 rounded-full blur-3xl -z-10" />
       

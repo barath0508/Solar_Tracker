@@ -161,6 +161,9 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
         const logMsg = `[AI Control]: Critical temp (${latestMetrics.temp.toFixed(1)}°C) detected on Node. Autonomously stowing panel flat.`;
         setAiLogs(prev => [logMsg, ...prev.slice(0, 9)]);
         try {
+          setIsAutoTracking(false);
+          setManualAzimuth(0);
+          setManualElevation(10);
           await sendDeviceCommand(deviceId, 'stow');
         } catch (e) {
           console.error("AI Stow failed", e);
@@ -189,6 +192,9 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
         const logMsg = `[AI Control]: High wind velocities registered by anemometer. Stowing panel flat for structural protection.`;
         setAiLogs(prev => [logMsg, ...prev.slice(0, 9)]);
         try {
+          setIsAutoTracking(false);
+          setManualAzimuth(0);
+          setManualElevation(10);
           await sendDeviceCommand(deviceId, 'stow');
         } catch (e) {
           console.error("AI Stow failed", e);
@@ -511,23 +517,27 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
   const hasOtaAccess = userRole === 'Admin';
 
   // AI Fault Diagnostics mappings
-  const isOpenCircuit = currentMetrics.v > 18 && currentMetrics.i < 0.1;
-  const isShortCircuit = currentMetrics.v < 1 && currentMetrics.i > 4.5;
-  const isPanelFailure = currentMetrics.fault === 3 || currentMetrics.fault === 5;
+  const isOpenCircuit = currentMetrics.fault === 7 || (currentMetrics.i < 0.0001 && currentMetrics.v >= 0.1);
+  const isShortCircuit = currentMetrics.fault === 8 || (currentMetrics.v < 0.1 && currentMetrics.i >= 0.0001);
+  const isSolarPanelFault = currentMetrics.fault === 9 || (currentMetrics.v < 0.1 && currentMetrics.i < 0.0001);
+  const isPanelFailure = currentMetrics.fault === 3 || currentMetrics.fault === 5 || isSolarPanelFault;
 
   const isDustSoiling = currentMetrics.fault === 1;
   const isBirdDroppings = currentMetrics.fault === 2 && (currentMetrics.id % 2 === 0);
   const isPartialShading = currentMetrics.fault === 2 && (currentMetrics.id % 2 !== 0);
 
   const getAgenticAlert = () => {
+    if (isSolarPanelFault) {
+      return "CRITICAL [SYSTEM]: Solar Panel Fault detected. Both voltage and current readings are zero. Panel may be damaged, fully disconnected, or covered.";
+    }
     if (isOpenCircuit) {
-      return "ALERT [SYSTEM]: Open circuit condition detected at edge actuator output. Suspect disconnected solar PV leads or blown DC fuse. Recommend checking physical loop connection.";
+      return "ALERT [SYSTEM]: Open Circuit Fault detected. Current is zero while voltage remains positive. Inspect for broken connections, open terminal block, or blown DC fuse.";
     }
     if (isShortCircuit) {
-      return "CRITICAL [SYSTEM]: Short circuit condition active. Current draw spiked to max limits with near-zero voltage. Disconnect actuator relay immediately to prevent thermal runaway.";
+      return "CRITICAL [SYSTEM]: Closed Circuit Fault (Short Circuit) active. Voltage is zero while current is drawn. Check for short circuits or component damage immediately.";
     }
     if (isPanelFailure) {
-      return "WARNING [AI CORE]: Panel degradation metrics spike. Local resistance hotspot detected via 1D-CNN thermal analyzer. Actuator commanded to stow angle (0° tilt) to reduce heat exposure.";
+      return "WARNING [AI CORE]: Panel degradation metrics spike or sensor offline. Local resistance hotspot detected. Actuator commanded to stow angle (0° tilt) to reduce heat exposure.";
     }
     if (isDustSoiling) {
       return "MAINTENANCE [VISION AI]: Heavy dust/soiling detected on monocrystalline surface. Power output reduced by 18%. Recommend executing a clean loop or deploying physical wipe sweepers.";
@@ -1217,16 +1227,40 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
           {/* Quick presets */}
           <div className="border-t border-slate-800/80 mt-6 pt-4">
             <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 block mb-3 font-mono">Priority Overrides</span>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               <button
-                onClick={() => triggerAction('stow')}
+                onClick={() => {
+                  if (!hasControlsAccess) return;
+                  setIsAutoTracking(false);
+                  setManualAzimuth(0);
+                  setManualElevation(10);
+                  triggerAction('stow');
+                }}
                 disabled={!hasControlsAccess}
                 className={`flex flex-col items-center justify-center py-2.5 px-1 bg-slate-950/60 border rounded-xl transition text-center hover:bg-slate-900 border-slate-850 hover:border-orange-500/30 text-[10px] uppercase font-bold text-slate-300 cursor-pointer ${
                   !hasControlsAccess ? 'opacity-40 cursor-not-allowed' : ''
                 }`}
               >
                 <Wind className="h-4 w-4 mb-1 text-cyan-400 animate-pulse" />
-                Stow (0°)
+                Stow Panel
+              </button>
+
+              <button
+                onClick={() => {
+                  if (!hasControlsAccess) return;
+                  setIsAutoTracking(true);
+                  setManualAzimuth(0);
+                  setManualElevation(45);
+                  // Triggering reboot restores hardware configuration to initial state
+                  triggerAction('reboot');
+                }}
+                disabled={!hasControlsAccess}
+                className={`flex flex-col items-center justify-center py-2.5 px-1 bg-slate-950/60 border rounded-xl transition text-center hover:bg-slate-900 border-slate-850 hover:border-emerald-500/30 text-[10px] uppercase font-bold text-slate-300 cursor-pointer ${
+                  !hasControlsAccess ? 'opacity-40 cursor-not-allowed' : ''
+                }`}
+              >
+                <RefreshCw className="h-4 w-4 mb-1 text-emerald-400 animate-spin" style={{ animationDuration: '3s' }} />
+                Initial Pos
               </button>
 
               <button
@@ -1237,7 +1271,7 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
                 }`}
               >
                 <RotateCw className="h-4 w-4 mb-1 text-yellow-500" />
-                Clean
+                Clean Sweep
               </button>
 
               <button
@@ -1248,7 +1282,7 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
                 }`}
               >
                 <Cpu className="h-4 w-4 mb-1 text-rose-500" />
-                Reboot
+                Reboot Node
               </button>
             </div>
           </div>

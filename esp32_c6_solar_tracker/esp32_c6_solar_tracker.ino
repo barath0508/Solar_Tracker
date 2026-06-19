@@ -84,6 +84,9 @@ bool shouldUseVercel() {
 #define SERVO_H_PIN 18
 #define SERVO_V_PIN 19
 
+// Buzzer Connection
+#define BUZZER_PIN 5
+
 // I2C pins for ESP32-C6
 #define I2C_SDA 6
 #define I2C_SCL 7
@@ -130,7 +133,7 @@ const int tolerance = 3;
 bool isAutoTracking = true;
 
 // Diagnostic Status
-int systemFaultCode = 0; // 0=Nominal, 1=Dust/Soiling, 3=Overheat, 4=Motor Blockage
+int systemFaultCode = 0; // 0=Nominal, 1=Dust/Soiling, 3=Overheat, 4=Motor Blockage, 5=Sensor Fault, 7=Open Circuit, 8=Closed Circuit, 9=Solar Panel Fault
 unsigned long lastTelemetryTime = 0;
 unsigned long lastCommandPollTime = 0;
 
@@ -192,6 +195,10 @@ void setup()
 
   horizontalServo.write(servoH);
   verticalServo.write(servoV);
+
+  // Buzzer Setup
+  pinMode(BUZZER_PIN, OUTPUT);
+  digitalWrite(BUZZER_PIN, LOW);
 
   // Connect to Local Wi-Fi
   connectWiFi();
@@ -299,6 +306,34 @@ void loop()
     isAutoTracking = true;
   }
 
+  // 4b. Electrical Fault Detection (Open Circuit, Closed Circuit, Solar Panel Fault)
+  if (systemFaultCode != 5 && systemFaultCode != 3) {
+    bool isVoltageZero = (busVoltage < 0.1);
+    bool isCurrentZero = (current_mA < 0.1);
+
+    if (isVoltageZero && isCurrentZero) {
+      if (systemFaultCode != 9) {
+        systemFaultCode = 9; // Solar Panel Fault
+        sendFaultAlert("critical", "Solar Panel Fault detected: both voltage and current are zero.");
+      }
+    } else if (isVoltageZero) {
+      if (systemFaultCode != 8) {
+        systemFaultCode = 8; // Closed Circuit Fault
+        sendFaultAlert("critical", "Closed Circuit Fault detected: voltage is zero while current is drawn.");
+      }
+    } else if (isCurrentZero) {
+      if (systemFaultCode != 7) {
+        systemFaultCode = 7; // Open Circuit Fault
+        sendFaultAlert("warning", "Open Circuit Fault detected: current is zero while voltage remains positive.");
+      }
+    } else {
+      // Clear electrical faults if conditions are healthy
+      if (systemFaultCode == 7 || systemFaultCode == 8 || systemFaultCode == 9) {
+        systemFaultCode = 0; // Nominal
+      }
+    }
+  }
+
   // 5. Publish Telemetry to Website API
   if (millis() - lastTelemetryTime >= telemetryInterval) {
     sendTelemetry();
@@ -315,6 +350,25 @@ void loop()
   if (millis() - lastOverridePollTime >= overridePollInterval) {
     pollFastLaneOverride();
     lastOverridePollTime = millis();
+  }
+
+  // 6c. Buzzer Alarm Signal Toggling (Non-blocking beep pattern)
+  if (systemFaultCode != 0) {
+    int beepInterval = 1000;
+    if (systemFaultCode == 3 || systemFaultCode == 9) {
+      // Overheat or Solar Panel Fault (Critical) -> Fast beep
+      beepInterval = 300;
+    } else if (systemFaultCode == 7 || systemFaultCode == 8 || systemFaultCode == 5 || systemFaultCode == 4) {
+      // Electrical Warning, Motor Block, or Sensor Fault -> Medium beep
+      beepInterval = 600;
+    } else {
+      // Dust cover or other warnings -> Slow beep
+      beepInterval = 1200;
+    }
+    bool buzzerState = (millis() / beepInterval) % 2 == 0;
+    digitalWrite(BUZZER_PIN, buzzerState ? HIGH : LOW);
+  } else {
+    digitalWrite(BUZZER_PIN, LOW); // Silent when nominal
   }
 
   // 7. Render local LCD

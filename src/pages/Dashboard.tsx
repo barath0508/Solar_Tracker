@@ -292,7 +292,9 @@ export default function Dashboard({ userRole }: DashboardProps) {
     if (latest && d.status === 'online') {
       totalPowerToday += latest.p || 0;
     }
-  })  return (
+  });
+
+  return (
     <div className="relative min-h-screen bg-slate-50 p-8 font-sans">
       {/* Background neon flares */}
       <div className="absolute top-10 left-10 h-[300px] w-[300px] bg-cyan-500/10 rounded-full blur-3xl -z-10 animate-pulse" style={{ animationDuration: '8s' }} />
@@ -598,9 +600,6 @@ export default function Dashboard({ userRole }: DashboardProps) {
           </div>
         </div>
       )}
-
-    </div>
-  );  )}
 
     </div>
   );

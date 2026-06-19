@@ -477,12 +477,12 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
       // In live production mode (Vercel), show a high-quality solar panel placeholder image to avoid 404
       return "https://images.unsplash.com/photo-1508514177221-188b1cf16e9d?w=600&auto=format&fit=crop";
     }
-    return `/camera.jpg?t=${refreshTrigger}-${lastUploadTime || ''}`;
+    return `/camera.jpg?t=${refreshTrigger}-${lastUploadTime}`;
   };
 
   if (loading) return (
-    <div className="flex h-screen items-center justify-center bg-slate-950 text-orange-500">
-      <RefreshCw className="h-10 w-10 animate-spin text-glow-solar" />
+    <div className="flex h-screen items-center justify-center bg-slate-50 text-amber-600">
+      <RefreshCw className="h-10 w-10 animate-spin" />
     </div>
   );
 
@@ -596,11 +596,11 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-8 font-sans selection:bg-orange-500 selection:text-slate-955">
+    <div className="min-h-screen bg-slate-50 text-slate-800 p-4 sm:p-8 font-sans selection:bg-orange-500 selection:text-white">
       
       {/* 🔝 Dashboard Header Cockpit */}
-      <div className="glass-panel aadhavan-sun-glow p-6 rounded-3xl mb-8 relative overflow-hidden">
-        <div className="absolute top-0 right-0 h-40 w-40 bg-orange-500/5 rounded-full blur-2xl pointer-events-none" />
+      <div className="glass-panel aadhavan-sun-glow p-6 rounded-3xl mb-8 relative overflow-hidden bg-white/80 border border-slate-200 shadow-md">
+        <div className="absolute top-0 right-0 h-40 w-40 bg-orange-500/10 rounded-full blur-2xl pointer-events-none" />
         <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-orange-500" />
         <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-orange-500" />
         <div className="absolute bottom-0 left-0 w-2 h-2 border-b border-l border-orange-500" />
@@ -608,55 +608,55 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
 
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="flex items-center gap-4">
-            <Link to="/dashboard" className="p-3 bg-slate-900/80 hover:bg-slate-800 border border-slate-800 hover:border-orange-500/30 rounded-2xl transition duration-300 text-slate-400 hover:text-white flex items-center justify-center">
+            <Link to="/dashboard" className="p-3 bg-white hover:bg-slate-50 border border-slate-200 hover:border-orange-500/30 rounded-2xl transition duration-300 text-slate-600 hover:text-slate-800 flex items-center justify-center shadow-sm">
               <ArrowLeft className="h-5 w-5" />
             </Link>
             <div>
               <div className="flex flex-wrap items-center gap-3">
-                <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white font-sans text-glow-solar">
+                <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 font-sans">
                   {device?.name || 'AadhavanAI Simulation Node'}
                 </h1>
                 <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black border uppercase tracking-wider ${
                   device?.status === 'online' 
-                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
                     : device?.status === 'fault'
-                    ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'
-                    : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                    ? 'bg-rose-50 text-rose-700 border-rose-200'
+                    : 'bg-amber-50 text-amber-700 border-amber-200'
                 }`}>
                   <span className={`h-1.5 w-1.5 rounded-full ${
                     device?.status === 'online' 
-                      ? 'bg-emerald-400 animate-pulse' 
+                      ? 'bg-emerald-500 animate-pulse' 
                       : device?.status === 'fault'
-                      ? 'bg-rose-400 animate-pulse'
-                      : 'bg-amber-400'
+                      ? 'bg-rose-500 animate-pulse'
+                      : 'bg-amber-500'
                   }`} />
                   {device?.status || 'ONLINE'}
                 </span>
               </div>
               <p className="text-slate-500 text-xs mt-1.5 font-mono">
-                DEVICE_ID: <span className="text-slate-400 font-bold">{device?.id || deviceId}</span>
+                DEVICE_ID: <span className="text-slate-600 font-bold">{device?.id || deviceId}</span>
               </p>
             </div>
           </div>
 
           {/* Metadata Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-slate-950/80 border border-slate-900 rounded-2xl p-4 font-mono text-[10px]">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-slate-100 border border-slate-200 rounded-2xl p-4 font-mono text-[10px]">
             <div className="space-y-1">
               <span className="text-slate-500 uppercase flex items-center gap-1"><MapPin className="h-3 w-3 text-orange-500" /> GPS COORDS</span>
-              <span className="text-slate-300 font-bold block">13.0379° N, 80.0448° E</span>
+              <span className="text-slate-800 font-bold block">13.0379° N, 80.0448° E</span>
             </div>
-            <div className="space-y-1 border-l border-slate-900/60 pl-4">
-              <span className="text-slate-500 uppercase flex items-center gap-1"><Compass className="h-3 w-3 text-cyan-400" /> NODE SERIAL</span>
-              <span className="text-slate-300 font-bold block">{device?.serial_number || 'SM-ESP32-RIT01'}</span>
+            <div className="space-y-1 border-l border-slate-200 pl-4">
+              <span className="text-slate-500 uppercase flex items-center gap-1"><Compass className="h-3 w-3 text-cyan-500" /> NODE SERIAL</span>
+              <span className="text-slate-800 font-bold block">{device?.serial_number || 'SM-ESP32-RIT01'}</span>
             </div>
-            <div className="space-y-1 border-l border-slate-900/60 pl-4">
-              <span className="text-slate-500 uppercase flex items-center gap-1"><Radio className="h-3 w-3 text-yellow-500" /> FIRMWARE</span>
-              <span className="text-yellow-400 font-bold block">{device?.current_firmware_version || 'v1.0.0'}</span>
+            <div className="space-y-1 border-l border-slate-200 pl-4">
+              <span className="text-slate-500 uppercase flex items-center gap-1"><Radio className="h-3 w-3 text-amber-600" /> FIRMWARE</span>
+              <span className="text-amber-600 font-bold block">{device?.current_firmware_version || 'v1.0.0'}</span>
             </div>
-            <div className="space-y-1 border-l border-slate-900/60 pl-4">
-              <span className="text-slate-500 uppercase flex items-center gap-1"><Wifi className="h-3 w-3 text-emerald-400" /> PING RATIO</span>
-              <span className="text-emerald-400 font-bold block flex items-center gap-1">
-                {latency} ms <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
+            <div className="space-y-1 border-l border-slate-200 pl-4">
+              <span className="text-slate-500 uppercase flex items-center gap-1"><Wifi className="h-3 w-3 text-emerald-650" /> PING RATIO</span>
+              <span className="text-emerald-600 font-bold block flex items-center gap-1">
+                {latency} ms <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping" />
               </span>
             </div>
           </div>
@@ -664,18 +664,18 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
         
         {/* Commands Status Feed inside Cockpit */}
         {commandStatus && (
-          <div className="mt-4 p-3 bg-slate-900/80 border border-slate-800/80 rounded-xl text-xs flex items-center gap-2 font-mono">
+          <div className="mt-4 p-3 bg-slate-100 border border-slate-200 rounded-xl text-xs flex items-center gap-2 font-mono">
             <div className="h-2 w-2 rounded-full bg-orange-500 animate-ping" />
-            <span className="text-slate-300 font-semibold">{commandStatus}</span>
+            <span className="text-slate-700 font-semibold">{commandStatus}</span>
           </div>
         )}
       </div>
 
       {/* 🔒 RBAC Banner Warning */}
       {userRole === 'Visitor' && (
-        <div className="mb-6 p-4 bg-orange-500/10 border border-orange-500/20 rounded-2xl flex items-center gap-3 text-orange-400 text-xs font-bold font-mono">
+        <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-2xl flex items-center gap-3 text-orange-700 text-xs font-bold font-mono">
           <ShieldAlert className="h-5 w-5 shrink-0 text-orange-500" />
-          <span>You are logged in as a <strong className="text-white">Visitor</strong>. Manual steer parameters and OTA firmware actions are locked. Switch roles in the top header to unlock commands.</span>
+          <span>You are logged in as a <strong className="text-slate-900">Visitor</strong>. Manual steer parameters and OTA firmware actions are locked. Switch roles in the top header to unlock commands.</span>
         </div>
       )}
 
@@ -685,7 +685,7 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
         <div className="glass-panel p-5 rounded-2xl relative overflow-hidden transition duration-300 hover:border-orange-500/20 group">
           <div className="absolute top-0 right-0 h-16 w-16 bg-orange-500/5 rounded-full blur-lg" />
           <p className="text-[10px] text-slate-500 uppercase font-black tracking-wider font-mono">PV Array Voltage</p>
-          <p className="text-3xl font-black text-white mt-2 tracking-tighter font-sans">{currentMetrics.v.toFixed(1)} <span className="text-xs text-slate-500 font-normal font-mono">V</span></p>
+          <p className="text-3xl font-black text-slate-900 mt-2 tracking-tighter font-sans">{currentMetrics.v.toFixed(1)} <span className="text-xs text-slate-500 font-normal font-mono">V</span></p>
           <div className="text-[9px] text-slate-500 mt-2 font-mono">VOC_LIMIT: 24.0V</div>
         </div>
 
@@ -693,7 +693,7 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
         <div className="glass-panel p-5 rounded-2xl relative overflow-hidden transition duration-300 hover:border-cyan-500/20 group">
           <div className="absolute top-0 right-0 h-16 w-16 bg-cyan-500/5 rounded-full blur-lg" />
           <p className="text-[10px] text-slate-500 uppercase font-black tracking-wider font-mono">Ingested Loop Current</p>
-          <p className="text-3xl font-black text-white mt-2 tracking-tighter font-sans">{currentMetrics.i.toFixed(2)} <span className="text-xs text-slate-500 font-normal font-mono">A</span></p>
+          <p className="text-3xl font-black text-slate-900 mt-2 tracking-tighter font-sans">{currentMetrics.i.toFixed(2)} <span className="text-xs text-slate-500 font-normal font-mono">A</span></p>
           <div className="text-[9px] text-slate-500 mt-2 font-mono">IASC_LIMIT: 5.0A</div>
         </div>
 
@@ -701,7 +701,7 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
         <div className="glass-panel p-5 rounded-2xl relative overflow-hidden transition duration-300 hover:border-yellow-500/20 group">
           <div className="absolute top-0 right-0 h-16 w-16 bg-yellow-500/5 rounded-full blur-lg" />
           <p className="text-[10px] text-slate-500 uppercase font-black tracking-wider font-mono">Net Power Generated</p>
-          <p className="text-3xl font-black text-white mt-2 tracking-tighter font-sans">{currentMetrics.p.toFixed(2)} <span className="text-xs text-slate-500 font-normal font-mono">W</span></p>
+          <p className="text-3xl font-black text-slate-900 mt-2 tracking-tighter font-sans">{currentMetrics.p.toFixed(2)} <span className="text-xs text-slate-500 font-normal font-mono">W</span></p>
           <div className="text-[9px] text-slate-500 mt-2 font-mono">CALCULATED: V * I</div>
         </div>
 
@@ -709,7 +709,7 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
         <div className="glass-panel p-5 rounded-2xl relative overflow-hidden transition duration-300 hover:border-rose-500/20 group">
           <div className="absolute top-0 right-0 h-16 w-16 bg-rose-500/5 rounded-full blur-lg" />
           <p className="text-[10px] text-slate-500 uppercase font-black tracking-wider font-mono">Panel Temperature</p>
-          <p className={`text-3xl font-black mt-2 tracking-tighter font-sans ${currentMetrics.temp > 60 ? 'text-rose-500 text-glow-rose' : 'text-white'}`}>
+          <p className={`text-3xl font-black mt-2 tracking-tighter font-sans ${currentMetrics.temp > 60 ? 'text-rose-600' : 'text-slate-900'}`}>
             {currentMetrics.temp.toFixed(1)} <span className="text-xs text-slate-500 font-normal font-mono">°C</span>
           </p>
           <div className="text-[9px] text-slate-500 mt-2 font-mono">TEMP_LIMIT: 65.0°C</div>
@@ -719,7 +719,7 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
         <div className="glass-panel p-5 rounded-2xl relative overflow-hidden transition duration-300 hover:border-emerald-500/20 group">
           <div className="absolute top-0 right-0 h-16 w-16 bg-emerald-500/5 rounded-full blur-lg" />
           <p className="text-[10px] text-slate-500 uppercase font-black tracking-wider font-mono">Relative Humidity</p>
-          <p className="text-3xl font-black text-white mt-2 tracking-tighter font-sans">
+          <p className="text-3xl font-black text-slate-900 mt-2 tracking-tighter font-sans">
             {currentMetrics.humidity.toFixed(0)} <span className="text-xs text-slate-500 font-normal font-mono">%</span>
           </p>
           <div className="text-[9px] text-slate-500 mt-2 font-mono">DHT11 SENSOR</div>
@@ -739,7 +739,7 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
             <div className="absolute bottom-0 left-0 w-2 h-2 border-b border-l border-orange-500" />
             <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-orange-500" />
 
-            <h2 className="text-sm font-black text-white mb-4 uppercase tracking-wider flex items-center gap-2 font-mono">
+            <h2 className="text-sm font-black text-slate-900 mb-4 uppercase tracking-wider flex items-center gap-2 font-mono">
               <Sun className="h-4 w-4 text-orange-500" /> Synchronized Generation & Thermal Profiling
             </h2>
             
@@ -755,7 +755,7 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
                         <stop offset="95%" stopColor="#06b6d4" stopOpacity={0}/>
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(15, 23, 42, 0.06)" />
                     <XAxis 
                       dataKey="timestamp" 
                       tickFormatter={(t) => t ? new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : ''}
@@ -765,7 +765,7 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
                     <YAxis yAxisId="left" stroke="#06b6d4" style={{ fontSize: '9px' }} />
                     <YAxis yAxisId="right" orientation="right" stroke="#f43f5e" style={{ fontSize: '9px' }} />
                     <Tooltip 
-                      contentStyle={{ backgroundColor: '#020617', borderColor: 'rgba(249, 115, 22, 0.2)', color: '#fff', fontSize: '11px', borderRadius: '12px' }} 
+                      contentStyle={{ backgroundColor: '#ffffff', borderColor: 'rgba(15, 23, 42, 0.08)', color: '#1e293b', fontSize: '11px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)' }} 
                       labelFormatter={(l) => l ? new Date(l).toLocaleTimeString() : ''} 
                     />
                     <Legend wrapperStyle={{ fontSize: '10px', paddingTop: '10px' }} />
@@ -785,7 +785,7 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
             <div className="absolute bottom-0 left-0 w-2 h-2 border-b border-l border-orange-500" />
             <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-orange-500" />
 
-            <h2 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2 mb-6 font-mono">
+            <h2 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2 mb-6 font-mono">
               <Cpu className="text-orange-500 h-5 w-5 text-glow-solar" /> Intelligent Fault Detection & Diagnostics
             </h2>
             
@@ -796,22 +796,22 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
                   <div className="grid grid-cols-3 gap-2">
                     <div className={`py-2 px-1 rounded-xl border text-center font-mono text-[9px] uppercase tracking-wider font-bold transition duration-300 ${
                       isOpenCircuit 
-                        ? 'bg-rose-500/10 text-rose-400 border-rose-500/35 text-glow-rose animate-pulse'
-                        : 'bg-slate-950/40 text-slate-650 border-slate-900'
+                        ? 'bg-rose-50 text-rose-700 border-rose-200 animate-pulse font-extrabold shadow-sm'
+                        : 'bg-slate-100 text-slate-400 border-slate-200'
                     }`}>
                       Open Circ
                     </div>
                     <div className={`py-2 px-1 rounded-xl border text-center font-mono text-[9px] uppercase tracking-wider font-bold transition duration-300 ${
                       isShortCircuit 
-                        ? 'bg-rose-500/10 text-rose-400 border-rose-500/35 text-glow-rose animate-pulse'
-                        : 'bg-slate-950/40 text-slate-650 border-slate-900'
+                        ? 'bg-rose-50 text-rose-700 border-rose-200 animate-pulse font-extrabold shadow-sm'
+                        : 'bg-slate-100 text-slate-400 border-slate-200'
                     }`}>
                       Short Circ
                     </div>
                     <div className={`py-2 px-1 rounded-xl border text-center font-mono text-[9px] uppercase tracking-wider font-bold transition duration-300 ${
                       isPanelFailure 
-                        ? 'bg-rose-500/10 text-rose-400 border-rose-500/35 text-glow-rose animate-pulse'
-                        : 'bg-slate-950/40 text-slate-650 border-slate-900'
+                        ? 'bg-rose-50 text-rose-700 border-rose-200 animate-pulse font-extrabold shadow-sm'
+                        : 'bg-slate-100 text-slate-400 border-slate-200'
                     }`}>
                       Panel Fail
                     </div>
@@ -823,22 +823,22 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
                   <div className="grid grid-cols-3 gap-2">
                     <div className={`py-2 px-1 rounded-xl border text-center font-mono text-[9px] uppercase tracking-wider font-bold transition duration-300 ${
                       isDustSoiling 
-                        ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/35 text-glow-gold animate-pulse'
-                        : 'bg-slate-950/40 text-slate-650 border-slate-900'
+                        ? 'bg-amber-50 text-amber-750 border-amber-200 animate-pulse font-extrabold shadow-sm'
+                        : 'bg-slate-100 text-slate-400 border-slate-200'
                     }`}>
                       Dust/Soil
                     </div>
                     <div className={`py-2 px-1 rounded-xl border text-center font-mono text-[9px] uppercase tracking-wider font-bold transition duration-300 ${
                       isBirdDroppings 
-                        ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/35 text-glow-gold animate-pulse'
-                        : 'bg-slate-950/40 text-slate-650 border-slate-900'
+                        ? 'bg-amber-50 text-amber-750 border-amber-200 animate-pulse font-extrabold shadow-sm'
+                        : 'bg-slate-100 text-slate-400 border-slate-200'
                     }`}>
                       Droppings
                     </div>
                     <div className={`py-2 px-1 rounded-xl border text-center font-mono text-[9px] uppercase tracking-wider font-bold transition duration-300 ${
                       isPartialShading 
-                        ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/35 text-glow-gold animate-pulse'
-                        : 'bg-slate-950/40 text-slate-650 border-slate-900'
+                        ? 'bg-amber-50 text-amber-750 border-amber-200 animate-pulse font-extrabold shadow-sm'
+                        : 'bg-slate-100 text-slate-400 border-slate-200'
                     }`}>
                       Shading
                     </div>
@@ -849,10 +849,10 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
               <div className="flex flex-col justify-between">
                 <div>
                   <h3 className="text-[9px] uppercase font-black tracking-widest font-mono text-slate-500 mb-2">Agentic Early Warning Alerts</h3>
-                  <div className={`p-4 bg-slate-950 border rounded-xl font-mono text-[10px] leading-relaxed min-h-[96px] flex items-center transition duration-300 ${
+                  <div className={`p-4 border rounded-2xl font-mono text-[10px] leading-relaxed min-h-[96px] flex items-center transition duration-300 shadow-sm ${
                     currentMetrics.fault !== 0 || isOpenCircuit || isShortCircuit
-                      ? 'border-rose-500/30 text-rose-400 bg-rose-950/10'
-                      : 'border-slate-850 text-orange-400 bg-orange-950/5'
+                      ? 'bg-rose-50/50 border-rose-200 text-rose-755'
+                      : 'bg-orange-50/30 border-orange-200/60 text-orange-755'
                   }`}>
                     {getAgenticAlert()}
                   </div>
@@ -870,13 +870,13 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
             
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
               <div>
-                <h2 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2 font-mono">
+                <h2 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2 font-mono">
                   <Camera className="text-orange-500 h-5 w-5" /> AadhavanAI Optical Inspection Feed
                 </h2>
                 <p className="text-[10px] text-slate-500 font-mono">SYS_CAMERA_VISUAL_MONITORING_UNIT</p>
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-[10px] text-slate-400 font-mono bg-slate-900 border border-slate-800 px-2 py-1 rounded-md">
+                <span className="text-[10px] text-slate-650 font-mono bg-slate-100 border border-slate-200 px-2 py-1 rounded-md">
                   OV2640 CAMERA MODULE
                 </span>
               </div>
@@ -885,7 +885,7 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
             <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
               {/* Image Frame Column */}
               <div className="md:col-span-7 flex flex-col justify-center">
-                <div className="relative aspect-video rounded-2xl overflow-hidden border border-slate-800 bg-slate-950 flex items-center justify-center group/screen">
+                <div className="relative aspect-video rounded-2xl overflow-hidden border border-slate-200 bg-slate-100 flex items-center justify-center group/screen">
                   <div className="absolute inset-0 bg-grid-white/[0.02] pointer-events-none" />
                   
                   <img 
@@ -937,14 +937,14 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
                 <div className="space-y-4">
                   {/* Mixed Content Browser Warning Alert */}
                   {window.location.protocol === 'https:' && (
-                    <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-[9.5px] font-mono text-rose-450 leading-relaxed">
+                    <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-[9.5px] font-mono text-rose-700 leading-relaxed shadow-sm">
                       <p className="font-bold flex items-center gap-1.5 uppercase"><ShieldAlert className="h-3.5 w-3.5" /> HTTPS Mixed Content</p>
-                      <p className="mt-1">Browsers block insecure camera streams (<code className="text-white">http://</code>) inside secure sites (<code className="text-white">https://</code>). To view the live feed, please launch the website locally on HTTP (e.g. <code className="text-white">http://localhost:5173</code>) or allow insecure content in your browser site permissions.</p>
+                      <p className="mt-1">Browsers block insecure camera streams (<code className="bg-rose-100 px-1 py-0.5 rounded text-rose-800 text-[10px]">http://</code>) inside secure sites (<code className="bg-rose-100 px-1 py-0.5 rounded text-rose-800 text-[10px]">https://</code>). To view the live feed, please launch the website locally on HTTP (e.g. <code className="bg-rose-100 px-1 py-0.5 rounded text-rose-800 text-[10px]">http://localhost:5173</code>) or allow insecure content in your browser site permissions.</p>
                     </div>
                   )}
 
-                  <div className="p-4 bg-slate-950/60 border border-slate-900 rounded-2xl space-y-3">
-                    <h3 className="text-xs font-black text-slate-300 uppercase font-mono tracking-wider">Stream Configuration</h3>
+                  <div className="p-4 bg-slate-100 border border-slate-200 rounded-2xl space-y-3 shadow-sm">
+                    <h3 className="text-xs font-black text-slate-800 uppercase font-mono tracking-wider">Stream Configuration</h3>
                     
                     <div>
                       <label className="text-[9px] text-slate-500 uppercase font-black tracking-wider block mb-1">ESP32-CAM Local IP Address</label>
@@ -954,24 +954,24 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
                           value={camIp}
                           onChange={(e) => handleCamIpChange(e.target.value)}
                           placeholder="e.g. 192.168.1.50" 
-                          className="flex-1 bg-slate-900 border border-slate-800 text-white rounded-xl px-3 py-1.5 text-xs font-mono focus:border-orange-500 focus:outline-none"
+                          className="flex-1 bg-white border border-slate-200 text-slate-800 rounded-xl px-3 py-1.5 text-xs font-mono focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500/20 shadow-sm"
                         />
                       </div>
                     </div>
 
                     <div className="flex items-center justify-between pt-2">
                       <div>
-                        <span className="text-[10px] font-bold text-slate-300 block">Start Live Stream</span>
+                        <span className="text-[10px] font-bold text-slate-800 block">Start Live Stream</span>
                         <span className="text-[9px] text-slate-500 font-mono">MJPEG stream via local network</span>
                       </div>
                       <button
                         onClick={() => setIsStreaming(!isStreaming)}
                         className={`relative inline-flex h-5.5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                          isStreaming ? 'bg-rose-500' : 'bg-slate-800'
+                          isStreaming ? 'bg-rose-500' : 'bg-slate-300'
                         }`}
                       >
                         <span
-                          className={`pointer-events-none inline-block h-4.5 w-4.5 transform rounded-full bg-slate-950 shadow ring-0 transition duration-200 ease-in-out ${
+                          className={`pointer-events-none inline-block h-4.5 w-4.5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
                             isStreaming ? 'translate-x-4.5' : 'translate-x-0'
                           }`}
                         />
@@ -979,21 +979,21 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
                     </div>
                   </div>
 
-                  <div className="p-4 bg-slate-950/60 border border-slate-900 rounded-2xl space-y-2.5">
-                    <h3 className="text-xs font-black text-slate-300 uppercase font-mono tracking-wider">Health & Timing</h3>
+                  <div className="p-4 bg-slate-100 border border-slate-200 rounded-2xl space-y-2.5 shadow-sm">
+                    <h3 className="text-xs font-black text-slate-800 uppercase font-mono tracking-wider">Health & Timing</h3>
                     <div className="grid grid-cols-2 gap-4 text-left font-mono">
                       <div>
                         <span className="text-[9px] text-slate-500 block uppercase font-black">Interval</span>
-                        <span className="text-xs text-slate-300">1 Hour</span>
+                        <span className="text-xs text-slate-705">1 Hour</span>
                       </div>
                       <div>
                         <span className="text-[9px] text-slate-500 block uppercase font-black">WiFi Status</span>
-                        <span className="text-xs text-emerald-400 font-bold">Connected</span>
+                        <span className="text-xs text-emerald-650 font-bold">Connected</span>
                       </div>
                     </div>
-                    <div className="border-t border-slate-900/60 pt-2 text-left font-mono">
+                    <div className="border-t border-slate-200 pt-2 text-left font-mono">
                       <span className="text-[9px] text-slate-500 block uppercase font-black">Last Photo Uploaded</span>
-                      <span className="text-[10px] text-slate-300 font-bold">
+                      <span className="text-[10px] text-slate-705 font-bold">
                         {lastUploadTime ? new Date(lastUploadTime).toLocaleString() : 'Waiting for initial capture...'}
                       </span>
                     </div>
@@ -1003,7 +1003,7 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
                 <div className="flex gap-3">
                   <button 
                     onClick={() => setRefreshTrigger(prev => prev + 1)}
-                    className="flex-1 py-2.5 px-3 bg-slate-900 border border-slate-800 hover:border-slate-700 active:bg-slate-950 text-slate-300 hover:text-white rounded-xl font-bold font-mono text-[10px] uppercase transition duration-200 flex items-center justify-center gap-1.5 cursor-pointer"
+                    className="flex-1 py-2.5 px-3 bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 active:bg-slate-100 text-slate-700 hover:text-slate-900 rounded-xl font-bold font-mono text-[10px] uppercase transition duration-200 flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
                   >
                     <RefreshCw className="h-3 w-3" /> Refresh Image
                   </button>
@@ -1021,7 +1021,7 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
                         console.error('Failed to trigger capture:', err);
                       }
                     }}
-                    className="flex-1 py-2.5 px-3 bg-orange-500/10 border border-orange-500/25 hover:border-orange-500/40 text-orange-400 hover:text-orange-350 rounded-xl font-bold font-mono text-[10px] uppercase transition duration-200 flex items-center justify-center gap-1.5 cursor-pointer"
+                    className="flex-1 py-2.5 px-3 bg-orange-50 hover:bg-orange-100 border border-orange-200 hover:border-orange-350 text-orange-700 hover:text-orange-800 rounded-xl font-bold font-mono text-[10px] uppercase transition duration-200 flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
                   >
                     <Camera className="h-3.5 w-3.5" /> Capture Now
                   </button>
@@ -1053,17 +1053,17 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
             <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-orange-500" />
             
             <div>
-              <h2 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-1.5 font-mono">
+              <h2 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5 font-mono">
                 <Sun className="text-orange-500 h-4.5 w-4.5 text-glow-solar animate-spin-slow" /> Target Tracking HUD
               </h2>
               <p className="text-[10px] text-slate-500 font-mono mt-0.5">SYS_RADAR_SUN_ALIGNMENT_VECTOR</p>
             </div>
 
-            <div className="flex justify-center items-center my-6 relative p-4 bg-slate-950/40 border border-slate-900 rounded-2xl">
-              <div className="absolute inset-0 bg-grid-white/[0.02] rounded-2xl pointer-events-none" />
+            <div className="flex justify-center items-center my-6 relative p-4 bg-slate-100 border border-slate-200 rounded-2xl">
+              <div className="absolute inset-0 bg-grid-slate-900/[0.02] rounded-2xl pointer-events-none" />
               
               <svg width="240" height="130" viewBox="0 0 240 130" className="overflow-visible z-10 font-mono">
-                <line x1="10" y1="120" x2="230" y2="120" stroke="#1e293b" strokeWidth="2" />
+                <line x1="10" y1="120" x2="230" y2="120" stroke="#cbd5e1" strokeWidth="2" />
                 <path d="M 20 120 A 100 100 0 0 1 220 120" fill="none" stroke="rgba(249, 115, 22, 0.1)" strokeWidth="2" />
                 <path d="M 50 120 A 70 70 0 0 1 190 120" fill="none" stroke="rgba(249, 115, 22, 0.15)" strokeWidth="1" strokeDasharray="3 3" />
                 <path d="M 80 120 A 40 40 0 0 1 160 120" fill="none" stroke="rgba(249, 115, 22, 0.08)" strokeWidth="2" />
@@ -1092,7 +1092,7 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
 
                 <g transform={`translate(120, 120) rotate(${panelAngle})`}>
                   <line x1="0" y1="0" x2="0" y2="-20" stroke="#64748b" strokeWidth="5" />
-                  <circle cx="0" cy="0" r="6" fill="#0f172a" stroke="#64748b" strokeWidth="3" />
+                  <circle cx="0" cy="0" r="6" fill="#ffffff" stroke="#64748b" strokeWidth="3" />
                   <line x1="-45" y1="-20" x2="45" y2="-20" stroke="#f59e0b" strokeWidth="5" strokeLinecap="round" />
                   <line x1="-38" y1="-23" x2="-5" y2="-23" stroke="#1e3a8a" strokeWidth="1.5" />
                   <line x1="5" y1="-23" x2="38" y2="-23" stroke="#1e3a8a" strokeWidth="1.5" />
@@ -1106,12 +1106,11 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
               </svg>
             </div>
 
-            <div className="bg-slate-950 p-3 rounded-xl border border-slate-900 text-center text-[10px] font-mono flex items-center justify-between">
+            <div className="bg-slate-100 p-3 rounded-xl border border-slate-200 text-center text-[10px] font-mono flex items-center justify-between shadow-sm">
               <span className="text-slate-500 uppercase font-bold">ALIGN_EFFICIENCY:</span>
-              <span className="font-extrabold text-emerald-400 font-mono">{(98.5 - Math.abs(calculatedPanelAngle * 0.05)).toFixed(2)}%</span>
+              <span className="font-extrabold text-emerald-600 font-mono">{(98.5 - Math.abs(calculatedPanelAngle * 0.05)).toFixed(2)}%</span>
             </div>
           </div>
-
         </div>
       </div>
 

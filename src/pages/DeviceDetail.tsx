@@ -1116,7 +1116,6 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
 
       {/* 🎮 Overrides & Edge Diagnostics Section */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-8">
-        
         {/* Card 1: Edge Steering Overrides */}
         <div className="glass-panel p-6 rounded-3xl relative overflow-hidden hover:border-orange-500/20 transition duration-300 flex flex-col justify-between">
           <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-orange-500" />
@@ -1125,15 +1124,15 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
           <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-orange-500" />
 
           <div>
-            <h2 className="text-sm font-black text-white mb-2 flex items-center gap-2 uppercase tracking-wider font-mono">
+            <h2 className="text-sm font-black text-slate-900 mb-2 flex items-center gap-2 uppercase tracking-wider font-mono">
               <Settings className="text-orange-500 h-5 w-5 text-glow-solar" /> Edge Steering Overrides
             </h2>
-            <p className="text-xs text-slate-400 mb-6 leading-normal">Manage tracking mode and tilt angles of the actuator motors.</p>
+            <p className="text-xs text-slate-500 mb-6 leading-normal">Manage tracking mode and tilt angles of the actuator motors.</p>
 
             {/* Toggle Switch */}
-            <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-800/85">
+            <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-200">
               <div>
-                <span className="text-xs font-black uppercase tracking-wider text-slate-300 block font-mono">Closed-Loop Tracking</span>
+                <span className="text-xs font-black uppercase tracking-wider text-slate-800 block font-mono">Closed-Loop Tracking</span>
                 <span className="text-[10px] text-slate-500 font-mono">Autonomous active LDR differential vectoring</span>
               </div>
               <button
@@ -1146,11 +1145,11 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
                 }}
                 disabled={!hasControlsAccess}
                 className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                  isAutoTracking ? 'bg-orange-500' : 'bg-slate-800'
+                  isAutoTracking ? 'bg-orange-500' : 'bg-slate-300'
                 } ${!hasControlsAccess ? 'opacity-55 cursor-not-allowed' : ''}`}
               >
                 <span
-                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-slate-950 shadow ring-0 transition duration-200 ease-in-out ${
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
                     isAutoTracking ? 'translate-x-5' : 'translate-x-0'
                   }`}
                 />
@@ -1162,10 +1161,10 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
               {/* Azimuth manual steering */}
               <div>
                 <div className="flex justify-between items-center mb-2">
-                  <label className="text-xs font-black text-slate-300 flex items-center gap-1.5 uppercase font-mono tracking-wider">
+                  <label className="text-xs font-black text-slate-750 flex items-center gap-1.5 uppercase font-mono tracking-wider">
                     <Sliders className="h-3.5 w-3.5 text-yellow-500" /> Azimuth Override (E-W)
                   </label>
-                  <span className={`text-xs font-mono font-bold ${isAutoTracking ? 'text-slate-550' : 'text-yellow-400'}`}>
+                  <span className={`text-xs font-mono font-bold ${isAutoTracking ? 'text-slate-400' : 'text-yellow-600'}`}>
                     {(manualAzimuth >= 0 ? '+' : '') + manualAzimuth}°
                   </span>
                 </div>
@@ -1179,11 +1178,11 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
                     setManualAzimuth(Number(e.target.value));
                   }}
                   disabled={isAutoTracking || !hasControlsAccess}
-                  className={`w-full h-1.5 rounded-lg appearance-none cursor-pointer bg-slate-800 accent-orange-500 focus:outline-none transition ${
+                  className={`w-full h-1.5 rounded-lg appearance-none cursor-pointer bg-slate-200 accent-orange-500 focus:outline-none transition ${
                     (isAutoTracking || !hasControlsAccess) ? 'opacity-40 cursor-not-allowed' : ''
                   }`}
                 />
-                <div className="flex justify-between text-[10px] text-slate-600 mt-1 font-mono">
+                <div className="flex justify-between text-[10px] text-slate-550 mt-1 font-mono">
                   <span>-45° East</span>
                   <span>0° Neutral</span>
                   <span>+45° West</span>
@@ -1193,10 +1192,10 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
               {/* Elevation manual steering */}
               <div>
                 <div className="flex justify-between items-center mb-2">
-                  <label className="text-xs font-black text-slate-300 flex items-center gap-1.5 uppercase font-mono tracking-wider">
-                    <Sliders className="h-3.5 w-3.5 text-cyan-400" /> Elevation Override (H-Z)
+                  <label className="text-xs font-black text-slate-750 flex items-center gap-1.5 uppercase font-mono tracking-wider">
+                    <Sliders className="h-3.5 w-3.5 text-cyan-500" /> Elevation Override (H-Z)
                   </label>
-                  <span className={`text-xs font-mono font-bold ${isAutoTracking ? 'text-slate-555' : 'text-cyan-400'}`}>
+                  <span className={`text-xs font-mono font-bold ${isAutoTracking ? 'text-slate-400' : 'text-cyan-600'}`}>
                     {manualElevation}°
                   </span>
                 </div>
@@ -1210,11 +1209,11 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
                     setManualElevation(Number(e.target.value));
                   }}
                   disabled={isAutoTracking || !hasControlsAccess}
-                  className={`w-full h-1.5 rounded-lg appearance-none cursor-pointer bg-slate-800 accent-cyan-500 focus:outline-none transition ${
+                  className={`w-full h-1.5 rounded-lg appearance-none cursor-pointer bg-slate-200 accent-cyan-500 focus:outline-none transition ${
                     (isAutoTracking || !hasControlsAccess) ? 'opacity-40 cursor-not-allowed' : ''
                   }`}
                 />
-                <div className="flex justify-between text-[10px] text-slate-600 mt-1 font-mono">
+                <div className="flex justify-between text-[10px] text-slate-550 mt-1 font-mono">
                   <span>0° Horizontal</span>
                   <span>45° Optimal</span>
                   <span>90° Zenith</span>
@@ -1224,7 +1223,7 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
           </div>
 
           {/* Quick presets */}
-          <div className="border-t border-slate-800/80 mt-6 pt-4">
+          <div className="border-t border-slate-200 mt-6 pt-4">
             <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 block mb-3 font-mono">Priority Overrides</span>
             <div className="grid grid-cols-2 gap-2">
               <button
@@ -1236,11 +1235,11 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
                   triggerAction('stow');
                 }}
                 disabled={!hasControlsAccess}
-                className={`flex flex-col items-center justify-center py-2.5 px-1 bg-slate-950/60 border rounded-xl transition text-center hover:bg-slate-900 border-slate-850 hover:border-orange-500/30 text-[10px] uppercase font-bold text-slate-300 cursor-pointer ${
+                className={`flex flex-col items-center justify-center py-2.5 px-1 bg-white hover:bg-slate-50 border border-slate-200 hover:border-orange-500/20 rounded-xl transition text-center text-[10px] uppercase font-bold text-slate-700 hover:text-slate-900 shadow-sm cursor-pointer ${
                   !hasControlsAccess ? 'opacity-40 cursor-not-allowed' : ''
                 }`}
               >
-                <Wind className="h-4 w-4 mb-1 text-cyan-400 animate-pulse" />
+                <Wind className="h-4 w-4 mb-1 text-cyan-500 animate-pulse" />
                 Stow Panel
               </button>
 
@@ -1254,29 +1253,29 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
                   triggerAction('reboot');
                 }}
                 disabled={!hasControlsAccess}
-                className={`flex flex-col items-center justify-center py-2.5 px-1 bg-slate-950/60 border rounded-xl transition text-center hover:bg-slate-900 border-slate-850 hover:border-emerald-500/30 text-[10px] uppercase font-bold text-slate-300 cursor-pointer ${
+                className={`flex flex-col items-center justify-center py-2.5 px-1 bg-white hover:bg-slate-50 border border-slate-200 hover:border-emerald-500/20 rounded-xl transition text-center text-[10px] uppercase font-bold text-slate-700 hover:text-slate-900 shadow-sm cursor-pointer ${
                   !hasControlsAccess ? 'opacity-40 cursor-not-allowed' : ''
                 }`}
               >
-                <RefreshCw className="h-4 w-4 mb-1 text-emerald-400 animate-spin" style={{ animationDuration: '3s' }} />
+                <RefreshCw className="h-4 w-4 mb-1 text-emerald-500 animate-spin" style={{ animationDuration: '3s' }} />
                 Initial Pos
               </button>
 
               <button
                 onClick={() => triggerAction('clean')}
                 disabled={!hasControlsAccess}
-                className={`flex flex-col items-center justify-center py-2.5 px-1 bg-slate-950/60 border rounded-xl transition text-center hover:bg-slate-900 border-slate-850 hover:border-yellow-500/30 text-[10px] uppercase font-bold text-slate-300 cursor-pointer ${
+                className={`flex flex-col items-center justify-center py-2.5 px-1 bg-white hover:bg-slate-50 border border-slate-200 hover:border-yellow-550/20 rounded-xl transition text-center text-[10px] uppercase font-bold text-slate-700 hover:text-slate-900 shadow-sm cursor-pointer ${
                   !hasControlsAccess ? 'opacity-40 cursor-not-allowed' : ''
                 }`}
               >
-                <RotateCw className="h-4 w-4 mb-1 text-yellow-500" />
+                <RotateCw className="h-4 w-4 mb-1 text-yellow-600" />
                 Clean Sweep
               </button>
 
               <button
                 onClick={() => triggerAction('reboot')}
                 disabled={!hasControlsAccess}
-                className={`flex flex-col items-center justify-center py-2.5 px-1 bg-slate-950/60 border rounded-xl transition text-center hover:bg-slate-900 border-slate-850 hover:border-rose-500/30 text-[10px] uppercase font-bold text-slate-300 cursor-pointer ${
+                className={`flex flex-col items-center justify-center py-2.5 px-1 bg-white hover:bg-slate-50 border border-slate-200 hover:border-rose-500/20 rounded-xl transition text-center text-[10px] uppercase font-bold text-slate-700 hover:text-slate-900 shadow-sm cursor-pointer ${
                   !hasControlsAccess ? 'opacity-40 cursor-not-allowed' : ''
                 }`}
               >
@@ -1295,29 +1294,29 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
           <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-emerald-500" />
 
           <div>
-            <h2 className="text-sm font-black text-white mb-2 flex items-center gap-2 uppercase tracking-wider font-mono">
+            <h2 className="text-sm font-black text-slate-900 mb-2 flex items-center gap-2 uppercase tracking-wider font-mono">
               <Cpu className="text-emerald-500 h-5 w-5 text-glow-cyan" /> ESP32 Edge AI Diagnostics
             </h2>
-            <p className="text-xs text-slate-400 leading-normal mb-4">
+            <p className="text-xs text-slate-500 leading-normal mb-4">
               Execute a simulated 1D-CNN deep learning classifier to isolate tracking and sensor anomalies.
             </p>
 
             {/* Glowing Terminal with animated softmax bars */}
-            <div className="my-2 p-4 bg-slate-950/90 border border-slate-900 rounded-xl font-mono text-[10px] leading-relaxed text-slate-300 min-h-60 relative overflow-hidden flex flex-col justify-between">
+            <div className="my-2 p-4 bg-slate-900 border border-slate-950 rounded-xl font-mono text-[10px] leading-relaxed text-slate-200 min-h-60 relative overflow-hidden flex flex-col justify-between shadow-sm">
               <div className="absolute inset-0 bg-scanline pointer-events-none opacity-[0.03]" />
               <div className="absolute top-0 right-0 h-16 w-16 bg-emerald-500/5 rounded-full blur-lg" />
               
               <div className="space-y-1 z-10 flex-grow">
                 {inferencing ? (
                   <div className="space-y-1">
-                    <p className="text-slate-500 animate-pulse">[+] INITIALIZING AI CORE ENGINE...</p>
-                    <p className="text-slate-500 animate-pulse">[+] RETRIEVING LDR TIME-SERIES BUFFER...</p>
-                    <p className="text-slate-400 animate-pulse">[D] CURRENT INPUT VEC: [{safeLdr.join(', ')}]</p>
-                    <p className="text-emerald-500 animate-pulse">[!] RUNNING 1D-CNN CORE LAYER WEIGHTS...</p>
+                    <p className="text-slate-450 animate-pulse">[+] INITIALIZING AI CORE ENGINE...</p>
+                    <p className="text-slate-450 animate-pulse">[+] RETRIEVING LDR TIME-SERIES BUFFER...</p>
+                    <p className="text-slate-350 animate-pulse">[D] CURRENT INPUT VEC: [{safeLdr.join(', ')}]</p>
+                    <p className="text-emerald-450 animate-pulse">[!] RUNNING 1D-CNN CORE LAYER WEIGHTS...</p>
                   </div>
                 ) : cnnOutput ? (
                   <div className="space-y-2.5">
-                    <p className="text-[9px] text-slate-500">[INFO] INFERENCE COMPLETE (LATENCY: 1.22ms)</p>
+                    <p className="text-[9px] text-slate-450">[INFO] INFERENCE COMPLETE (LATENCY: 1.22ms)</p>
                     <p className="text-emerald-400 font-bold text-[9px] uppercase tracking-wider">[SUCCESS] SOFTMAX CLASSIFICATION:</p>
                     
                     <div className="space-y-2 mt-1">
@@ -1332,9 +1331,9 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
                         <div key={idx} className="space-y-0.5">
                           <div className="flex justify-between text-[8px] font-bold text-slate-400">
                             <span>CLASS #{idx}: {cl.name}</span>
-                            <span className="font-mono text-white">{(cl.pct * 100).toFixed(1)}%</span>
+                            <span className="font-mono text-slate-100">{(cl.pct * 100).toFixed(1)}%</span>
                           </div>
-                          <div className="w-full h-1 bg-slate-900 rounded-full overflow-hidden">
+                          <div className="w-full h-1 bg-slate-800 rounded-full overflow-hidden">
                             <div className={`h-full ${cl.color} transition-all duration-700 ease-out`} style={{ width: `${cl.pct * 100}%` }} />
                           </div>
                         </div>
@@ -1342,10 +1341,10 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
                     </div>
                   </div>
                 ) : (
-                  <div className="h-full flex flex-col justify-center items-center text-center text-slate-500 py-8">
-                    <Play className="h-6 w-6 text-slate-700 mb-2 animate-pulse" />
-                    <p className="text-slate-400 font-bold text-xs uppercase tracking-wider font-mono">Edge Inference Standby</p>
-                    <p className="text-[9px] text-slate-500 mt-1 max-w-[200px] leading-relaxed">Click below to run telemetry streams through the CNN layer weights.</p>
+                  <div className="h-full flex flex-col justify-center items-center text-center text-slate-450 py-8">
+                    <Play className="h-6 w-6 text-slate-600 mb-2 animate-pulse" />
+                    <p className="text-slate-350 font-bold text-xs uppercase tracking-wider font-mono">Edge Inference Standby</p>
+                    <p className="text-[9px] text-slate-450 mt-1 max-w-[200px] leading-relaxed">Click below to run telemetry streams through the CNN layer weights.</p>
                   </div>
                 )}
               </div>
@@ -1357,8 +1356,8 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
             disabled={inferencing || !hasControlsAccess}
             className={`w-full mt-4 py-3 px-4 rounded-xl font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer ${
               inferencing || !hasControlsAccess
-                ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-900'
-                : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-500/20'
+                ? 'bg-slate-150 text-slate-400 border border-slate-200 cursor-not-allowed shadow-none'
+                : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-500/10'
             }`}
           >
             {inferencing ? (
@@ -1383,15 +1382,15 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
           <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-teal-500" />
 
           <div>
-            <h2 className="text-sm font-black text-white mb-2 flex items-center gap-2 uppercase tracking-wider font-mono">
-              <Brain className="text-teal-400 h-5 w-5 animate-pulse" /> AI Autonomous Agent
+            <h2 className="text-sm font-black text-slate-900 mb-2 flex items-center gap-2 uppercase tracking-wider font-mono">
+              <Brain className="text-teal-500 h-5 w-5 animate-pulse" /> AI Autonomous Agent
             </h2>
-            <p className="text-xs text-slate-400 mb-6 leading-normal font-sans">Enable closed-loop agentic overrides. The AI Core will monitor telemetry anomalies and dispatch commands autonomously.</p>
+            <p className="text-xs text-slate-500 mb-6 leading-normal font-sans">Enable closed-loop agentic overrides. The AI Core will monitor telemetry anomalies and dispatch commands autonomously.</p>
 
             {/* Toggle Switch */}
-            <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-800/80">
+            <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-200">
               <div>
-                <span className="text-xs font-black uppercase tracking-wider text-slate-300 block font-mono">Agent Autonomy</span>
+                <span className="text-xs font-black uppercase tracking-wider text-slate-800 block font-mono">Agent Autonomy</span>
                 <span className="text-[10px] text-slate-500 font-mono">Execute closed-loop mitigation loops</span>
               </div>
               <button
@@ -1404,11 +1403,11 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
                 }}
                 disabled={!hasControlsAccess}
                 className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                  isAiControl ? 'bg-teal-500' : 'bg-slate-800'
+                  isAiControl ? 'bg-teal-500' : 'bg-slate-300'
                 } ${!hasControlsAccess ? 'opacity-55 cursor-not-allowed' : ''}`}
               >
                 <span
-                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-slate-950 shadow ring-0 transition duration-200 ease-in-out ${
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
                     isAiControl ? 'translate-x-5' : 'translate-x-0'
                   }`}
                 />
@@ -1417,8 +1416,8 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
 
             {/* AI Action Logs */}
             <div>
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-550 block mb-2 font-mono">Agent Operation Log</span>
-              <div className="p-3 bg-slate-950 border border-slate-900 rounded-xl font-mono text-[9px] text-teal-400 leading-normal min-h-32 max-h-36 overflow-y-auto space-y-1.5 scrollbar-thin">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 block mb-2 font-mono">Agent Operation Log</span>
+              <div className="p-3 bg-slate-900 border border-slate-950 rounded-xl font-mono text-[9px] text-teal-400 leading-normal min-h-32 max-h-36 overflow-y-auto space-y-1.5 scrollbar-thin shadow-sm">
                 {aiLogs.map((log, idx) => (
                   <p key={idx} className="border-l-2 border-teal-500/40 pl-2">{log}</p>
                 ))}
@@ -1426,7 +1425,7 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
             </div>
           </div>
 
-          <div className="bg-slate-950/40 p-2.5 border border-slate-900 rounded-xl mt-4 text-center text-[9px] text-slate-500 font-mono uppercase">
+          <div className="bg-slate-100 p-2.5 border border-slate-200 rounded-xl mt-4 text-center text-[9px] text-slate-600 font-mono uppercase shadow-sm">
             {isAiControl ? '🟢 Agent Active (Monitoring)' : '⚪ Agent Idle'}
           </div>
         </div>
@@ -1439,19 +1438,19 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
           <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-rose-500" />
 
           <div>
-            <h2 className="text-sm font-black text-white mb-2 flex items-center gap-2 uppercase tracking-wider font-mono">
+            <h2 className="text-sm font-black text-slate-900 mb-2 flex items-center gap-2 uppercase tracking-wider font-mono">
               <Shield className="text-rose-500 h-5 w-5 text-glow-rose" /> OTA Firmware Deployment
             </h2>
-            <p className="text-xs text-slate-400 mb-6 leading-normal">Compile and upload binary packages. Automated MD5 validation avoids bootloops or corruption issues.</p>
+            <p className="text-xs text-slate-500 mb-6 leading-normal">Compile and upload binary packages. Automated MD5 validation avoids bootloops or corruption issues.</p>
 
             {/* Lock overlay for Non-Admins */}
             {!hasOtaAccess ? (
-              <div className="p-4 bg-slate-955 border border-slate-900 rounded-2xl text-slate-500 text-xs font-semibold text-center flex flex-col items-center justify-center gap-2 h-48">
-                <ShieldAlert className="h-6 w-6 text-rose-500/30" />
+              <div className="p-4 bg-slate-100 border border-slate-200 rounded-2xl text-slate-500 text-xs font-semibold text-center flex flex-col items-center justify-center gap-2 h-48 shadow-sm">
+                <ShieldAlert className="h-6 w-6 text-rose-500/40" />
                 <span className="uppercase font-mono text-[9px] tracking-wider">Firmware upload locked.<br/>Requires Admin privilege.</span>
               </div>
             ) : (
-              <div className="border-2 border-dashed border-slate-800 hover:border-orange-500/35 hover:bg-orange-500/5 rounded-2xl p-6 text-center transition duration-300 bg-slate-950/60">
+              <div className="border-2 border-dashed border-slate-200 hover:border-orange-500/35 hover:bg-orange-50/20 rounded-2xl p-6 text-center transition duration-300 bg-slate-50/50">
                 <input 
                   type="file" 
                   accept=".bin" 
@@ -1460,8 +1459,8 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
                   className="hidden" 
                 />
                 <label htmlFor="firmware-file-input-detail" className="cursor-pointer block font-mono">
-                  <Cpu className="h-8 w-8 text-slate-650 mx-auto mb-2" />
-                  <span className="text-[11px] text-slate-300 font-black block uppercase tracking-wider">
+                  <Cpu className="h-8 w-8 text-slate-400 mx-auto mb-2" />
+                  <span className="text-[11px] text-slate-700 font-black block uppercase tracking-wider">
                     {otaFile ? otaFile.name : 'Select firmware.bin'}
                   </span>
                   <span className="text-[9px] text-slate-500 block mt-1">Compiled binary files only</span>
@@ -1470,8 +1469,8 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
             )}
 
             {otaChecksum && (
-              <div className="mt-4 p-3 bg-slate-950/80 border border-slate-900 rounded-xl text-[10px] font-mono text-slate-400 break-all">
-                <span className="text-slate-550 block text-[9px] uppercase font-black tracking-wider mb-0.5">Computed Checksum MD5</span>
+              <div className="mt-4 p-3 bg-slate-105 border border-slate-200 rounded-xl text-[10px] font-mono text-slate-600 break-all shadow-sm">
+                <span className="text-slate-500 block text-[9px] uppercase font-black tracking-wider mb-0.5">Computed Checksum MD5</span>
                 {otaChecksum}
               </div>
             )}
@@ -1480,10 +1479,10 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
           <button
             onClick={handleOtaUpload}
             disabled={!otaFile || otaUploading || !hasOtaAccess}
-            className={`w-full mt-6 py-3.5 px-4 rounded-xl font-black text-xs uppercase tracking-widest transition flex items-center justify-center gap-2 cursor-pointer ${
+            className={`w-full mt-6 py-3.5 px-4 rounded-xl font-black text-xs uppercase tracking-widest transition flex items-center justify-center gap-2 cursor-pointer shadow-sm ${
               !otaFile || otaUploading || !hasOtaAccess
-                ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-900'
-                : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-500/20'
+                ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed shadow-none'
+                : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-500/10'
             }`}
           >
             {otaUploading ? (

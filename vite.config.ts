@@ -4,6 +4,28 @@ import tailwindcss from '@tailwindcss/vite'
 import fs from 'fs'
 import path from 'path'
 
+// Manually load variables from .env file into process.env for the Vite dev server context
+try {
+  const envPath = path.resolve(process.cwd(), '.env');
+  if (fs.existsSync(envPath)) {
+    const envContent = fs.readFileSync(envPath, 'utf-8');
+    envContent.split(/\r?\n/).forEach((line) => {
+      if (!line || line.trim().startsWith('#')) return;
+      const parts = line.split('=');
+      if (parts.length >= 2) {
+        const key = parts[0].trim();
+        let val = parts.slice(1).join('=').trim();
+        if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+          val = val.substring(1, val.length - 1);
+        }
+        process.env[key] = val;
+      }
+    });
+  }
+} catch (err) {
+  console.error('[ViteConfig] Failed to load .env file:', err);
+}
+
 const telemetryQueue: any[] = [];
 const faultQueue: any[] = [];
 const commandsQueue: any[] = [];
@@ -35,7 +57,7 @@ async function analyzeImageWithGemini(imageBuffer: Buffer, deviceId: string): Pr
   }
 
   const imageBase64 = imageBuffer.toString('base64');
-  const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`;
+  const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`;
 
   const prompt = `You are an expert solar panel condition monitoring AI built into AadhavanAI — a smart dual-axis solar tracker system.
 

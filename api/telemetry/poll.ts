@@ -21,33 +21,45 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    const deviceId = req.query.device_id || 'd1e028b0-a541-4702-8c20-3354316d2cf1';
-    let lastUploadTime = '';
+    let telemetry: any[] = [];
+    let faults: any[] = [];
 
     if (supabase) {
-      const { data, error } = await supabase
-        .from('panel_analysis')
-        .select('analyzed_at')
-        .eq('device_id', deviceId)
-        .order('analyzed_at', { ascending: false })
+      // 1. Fetch latest telemetry row
+      const { data: telData, error: telError } = await supabase
+        .from('telemetry')
+        .select('*')
+        .order('timestamp', { ascending: false })
         .limit(1);
 
-      if (error) {
-        console.error('Supabase query error in status:', error);
-      } else if (data && data.length > 0) {
-        lastUploadTime = data[0].analyzed_at;
+      if (telError) {
+        console.error('Supabase telemetry fetch error:', telError);
+      } else if (telData) {
+        telemetry = telData;
+      }
+
+      // 2. Fetch unresolved alerts/faults
+      const { data: faultData, error: faultError } = await supabase
+        .from('alerts')
+        .select('*')
+        .eq('is_resolved', false);
+
+      if (faultError) {
+        console.error('Supabase alerts fetch error:', faultError);
+      } else if (faultData) {
+        faults = faultData;
       }
     }
 
     return res.status(200).json({
-      lastUploadTime,
-      photoExists: false
+      telemetry,
+      faults
     });
   } catch (err: any) {
-    console.error('Status API error:', err);
+    console.error('Telemetry poll API error:', err);
     return res.status(200).json({
-      lastUploadTime: '',
-      photoExists: false
+      telemetry: [],
+      faults: []
     });
   }
 }

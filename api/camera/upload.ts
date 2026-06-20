@@ -1,5 +1,4 @@
 import { createClient } from '@supabase/supabase-js';
-import { setCachedAnalysis } from './analysis-result';
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
@@ -22,8 +21,6 @@ function readRawBody(req: any): Promise<Buffer> {
     req.on('error', reject);
   });
 }
-
-export let lastImageBase64 = '';
 
 export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -52,8 +49,6 @@ export default async function handler(req: any, res: any) {
       return res.status(400).json({ error: 'No image data provided' });
     }
 
-    lastImageBase64 = imageBase64;
-
     if (!geminiApiKey) {
       const mockResult = {
         condition: 'unknown',
@@ -65,7 +60,6 @@ export default async function handler(req: any, res: any) {
         timestamp: new Date().toISOString(),
         device_id: deviceId
       };
-      setCachedAnalysis(mockResult);
       return res.status(200).json({ status: 'success', analysis: mockResult });
     }
 
@@ -136,29 +130,40 @@ Set triggerCleaning to true ONLY for heavily_dusty or bird_dropping conditions.`
     }
 
     const result = { ...analysis, device_id: deviceId, timestamp: new Date().toISOString() };
-    setCachedAnalysis(result);
 
     // Persist to Supabase if configured
     if (supabase && deviceId) {
-      await supabase.from('panel_analysis').insert({
-        device_id:        deviceId,
-        condition:        result.condition,
-        confidence:       result.confidence,
-        label:            result.label,
-        details:          result.details,
-        recommendation:   result.recommendation,
-        trigger_cleaning: result.triggerCleaning,
-        analyzed_at:      result.timestamp,
-      });
-
-      if (result.triggerCleaning) {
-        await supabase.from('alerts').insert({
-          device_id:   deviceId,
-          severity:    'warning',
-          message:     `AI Panel Inspection: ${result.label}. ${result.recommendation}`,
-          is_resolved: false,
-          created_at:  result.timestamp,
+      try {
+        const { error: insertError } = await supabase.from('panel_analysis').insert({
+          device_id:        deviceId,
+          condition:        result.condition,
+          confidence:       result.confidence,
+          label:            result.label,
+          details:          result.details,
+          recommendation:   result.recommendation,
+          trigger_cleaning: result.triggerCleaning,
+          analyzed_at:      result.timestamp,
         });
+
+        if (insertError) {
+          console.error('[Supabase] panel_analysis insert error:', insertError);
+        }
+
+        if (result.triggerCleaning) {
+          const { error: alertError } = await supabase.from('alerts').insert({
+            device_id:   deviceId,
+            severity:    'warning',
+            message:     `AI Panel Inspection: ${result.label}. ${result.recommendation}`,
+            is_resolved: false,
+            created_at:  result.timestamp,
+          });
+
+          if (alertError) {
+            console.error('[Supabase] alerts insert error:', alertError);
+          }
+        }
+      } catch (dbErr) {
+        console.error('[Supabase] DB exception during insertion:', dbErr);
       }
     }
 

@@ -7,9 +7,6 @@ const supabase = (supabaseUrl && supabaseAnonKey)
   ? createClient(supabaseUrl, supabaseAnonKey) 
   : null;
 
-// Ephemeral in-memory store fallback for same-process development testing
-let lastAnalysis: any = null;
-
 export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -34,9 +31,9 @@ export default async function handler(req: any, res: any) {
         .order('analyzed_at', { ascending: false })
         .limit(1);
 
-      if (error) throw error;
-
-      if (data && data.length > 0) {
+      if (error) {
+        console.error('Supabase query error in analysis-result:', error);
+      } else if (data && data.length > 0) {
         const record = data[0];
         const analysis = {
           condition: record.condition,
@@ -52,12 +49,9 @@ export default async function handler(req: any, res: any) {
       }
     }
 
-    return res.status(200).json({ status: 'success', analysis: lastAnalysis });
+    return res.status(200).json({ status: 'success', analysis: null });
   } catch (err: any) {
-    return res.status(500).json({ status: 'error', message: err.message });
+    console.error('Analysis-result API error:', err);
+    return res.status(200).json({ status: 'success', analysis: null });
   }
-}
-
-export function setCachedAnalysis(analysis: any) {
-  lastAnalysis = analysis;
 }

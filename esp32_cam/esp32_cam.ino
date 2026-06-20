@@ -7,8 +7,8 @@
 // ==========================================
 // User Credentials & Server Configuration
 // ==========================================
-const char* ssid = "BS";
-const char* password = "bhavani06"; // Replace with your actual Wi-Fi password if different
+const char* ssid = "POCO X6 5G";
+const char* password = ""; // Replace with your actual Wi-Fi password if different
 
 // 1. Local Dev Server Settings
 const char* localHost = "http://192.168.137.60:5173";

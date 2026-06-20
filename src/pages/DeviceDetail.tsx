@@ -78,6 +78,10 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
   const [inferencing, setInferencing] = useState(false);
   const [isAiControl, setIsAiControl] = useState(false);
   const [aiLogs, setAiLogs] = useState<string[]>(["[AI Engine] Initialized in passive monitoring mode."]);
+
+  // Gemini AI panel analysis state
+  const [panelAnalysis, setPanelAnalysis] = useState<any>(null);
+  const [analyzing, setAnalyzing] = useState(false);
   
   // Camera States
   const [camIp, setCamIp] = useState(() => localStorage.getItem('sm_cam_ip') || '192.168.1.50');
@@ -103,11 +107,42 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
     localStorage.setItem('sm_cam_ip', ip);
   };
 
+  // Poll /api/camera/analysis-result every 8 s
   useEffect(() => {
-    if (isLiveMode) {
-      setLastUploadTime(new Date().toISOString());
-      return;
+    const fetchAnalysis = async () => {
+      try {
+        const res = await fetch('/api/camera/analysis-result');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.analysis) setPanelAnalysis(data.analysis);
+      } catch { /* silent */ }
+    };
+    fetchAnalysis();
+    const id = setInterval(fetchAnalysis, 8000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Manually trigger Gemini re-analysis of current camera.jpg
+  const analyzeNow = async () => {
+    setAnalyzing(true);
+    try {
+      const res = await fetch('/api/camera/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ device_id: deviceId }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.analysis) setPanelAnalysis(data.analysis);
+      }
+    } catch { /* silent */ } finally {
+      setAnalyzing(false);
     }
+  };
+
+  // Poll /api/camera/status every 5s; auto-bust cache when new upload detected
+  useEffect(() => {
+    if (isStreaming) return;
 
     let intervalId: any;
     const fetchCameraStatus = async () => {
@@ -120,8 +155,10 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
         }
         if (res.ok) {
           const data = await res.json();
-          if (data.lastUploadTime) {
+          if (data.lastUploadTime && data.lastUploadTime !== lastUploadTime) {
             setLastUploadTime(data.lastUploadTime);
+            // Force cache-bust so browser fetches the new image immediately
+            setRefreshTrigger(prev => prev + 1);
           }
         }
       } catch (err) {
@@ -129,11 +166,11 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
       }
     };
     fetchCameraStatus();
-    intervalId = setInterval(fetchCameraStatus, 10000);
+    intervalId = setInterval(fetchCameraStatus, 5000);
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
-  }, []);
+  }, [isStreaming, lastUploadTime]);;
 
   const lastCommandTimeRef = useRef<Record<string, number>>({});
 
@@ -473,12 +510,20 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
     if (isStreaming) {
       return `http://${camIp}/stream`;
     }
-    if (isLiveMode) {
-      // In live production mode (Vercel), show a high-quality solar panel placeholder image to avoid 404
-      return "https://images.unsplash.com/photo-1508514177221-188b1cf16e9d?w=600&auto=format&fit=crop";
+    // Always use the local upload path when running on localhost / private networks (dev server)
+    const isLocalhost = 
+      window.location.hostname === 'localhost' || 
+      window.location.hostname === '127.0.0.1' || 
+      window.location.hostname.startsWith('192.168.') || 
+      window.location.hostname.startsWith('10.') || 
+      window.location.hostname.startsWith('172.');
+    if (!isLocalhost && isLiveMode) {
+      // In production (Vercel), fetch the uploaded image from our API endpoint
+      return `/api/camera/image?t=${refreshTrigger}-${lastUploadTime}`;
     }
     return `/camera.jpg?t=${refreshTrigger}-${lastUploadTime}`;
   };
+
 
   if (loading) return (
     <div className="flex h-screen items-center justify-center bg-slate-50 text-amber-600">
@@ -893,23 +938,23 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
                     alt={isStreaming ? "Live Stream" : "Last Capture"} 
                     className="w-full h-full object-cover animate-fade-in"
                     onError={(e) => {
+                      const img = e.target as HTMLImageElement;
                       if (isStreaming) {
                         setIsStreaming(false);
                         alert("Failed to connect to ESP32-CAM live stream. Make sure the camera is online and your browser has local IP access to http://" + camIp);
                       } else {
-                        (e.target as any).style.display = 'none';
-                        const parent = (e.target as any).parentNode;
-                        const placeholder = parent.querySelector('.placeholder-text');
+                        img.style.display = 'none';
+                        const parent = img.parentNode as HTMLElement;
+                        const placeholder = parent?.querySelector('.placeholder-text') as HTMLElement | null;
                         if (placeholder) placeholder.style.display = 'flex';
                       }
                     }}
                     onLoad={(e) => {
-                      if (!isStreaming) {
-                        (e.target as any).style.display = 'block';
-                        const parent = (e.target as any).parentNode;
-                        const placeholder = parent.querySelector('.placeholder-text');
-                        if (placeholder) placeholder.style.display = 'none';
-                      }
+                      const img = e.target as HTMLImageElement;
+                      img.style.display = 'block';
+                      const parent = img.parentNode as HTMLElement;
+                      const placeholder = parent?.querySelector('.placeholder-text') as HTMLElement | null;
+                      if (placeholder) placeholder.style.display = 'none';
                     }}
                   />
                   
@@ -1028,6 +1073,127 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
                 </div>
               </div>
             </div>
+
+            {/* ── Gemini AI Panel Analysis Result ─────────────────────── */}
+            {(() => {
+              // Colour + icon mapping per condition
+              const conditionMeta: Record<string, { bg: string; border: string; text: string; dot: string; icon: string }> = {
+                clear:          { bg: 'bg-emerald-50',  border: 'border-emerald-200', text: 'text-emerald-700', dot: 'bg-emerald-500', icon: '✅' },
+                dusty:          { bg: 'bg-amber-50',    border: 'border-amber-200',   text: 'text-amber-700',   dot: 'bg-amber-400',   icon: '🟡' },
+                heavily_dusty:  { bg: 'bg-orange-50',  border: 'border-orange-200',  text: 'text-orange-700',  dot: 'bg-orange-500',  icon: '🟠' },
+                bird_dropping:  { bg: 'bg-yellow-50',  border: 'border-yellow-300',  text: 'text-yellow-800',  dot: 'bg-yellow-500',  icon: '🐦' },
+                obstructed:     { bg: 'bg-sky-50',     border: 'border-sky-200',     text: 'text-sky-700',     dot: 'bg-sky-500',     icon: '🚧' },
+                damaged:        { bg: 'bg-rose-50',    border: 'border-rose-200',    text: 'text-rose-700',    dot: 'bg-rose-500',    icon: '⚠️' },
+                glare:          { bg: 'bg-indigo-50',  border: 'border-indigo-200',  text: 'text-indigo-700',  dot: 'bg-indigo-400',  icon: '🔆' },
+                water_logged:   { bg: 'bg-blue-50',   border: 'border-blue-200',    text: 'text-blue-700',    dot: 'bg-blue-500',    icon: '💧' },
+                unknown:        { bg: 'bg-slate-50',  border: 'border-slate-200',   text: 'text-slate-600',   dot: 'bg-slate-400',   icon: '❓' },
+              };
+              const meta = panelAnalysis ? (conditionMeta[panelAnalysis.condition] ?? conditionMeta['unknown']) : null;
+              const confidence = panelAnalysis?.confidence ?? 0;
+
+              return (
+                <div className="mt-6 rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                  {/* Header */}
+                  <div className="flex items-center justify-between px-5 py-3 bg-gradient-to-r from-violet-50 to-indigo-50 border-b border-slate-200">
+                    <div className="flex items-center gap-2">
+                      <Brain className="h-4 w-4 text-violet-600" />
+                      <span className="text-[10px] font-black uppercase tracking-widest text-violet-700 font-mono">Gemini AI · Panel Inspection</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {panelAnalysis && (
+                        <span className="text-[9px] font-mono text-slate-400">
+                          {new Date(panelAnalysis.timestamp).toLocaleTimeString()}
+                        </span>
+                      )}
+                      <button
+                        onClick={analyzeNow}
+                        disabled={analyzing}
+                        title="Re-analyse current image with Gemini AI"
+                        className="flex items-center gap-1 px-2.5 py-1 bg-violet-600 hover:bg-violet-700 disabled:bg-violet-300 text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition cursor-pointer"
+                      >
+                        <Brain className="h-3 w-3" />
+                        {analyzing ? 'Analysing…' : 'Re-Analyse'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {!panelAnalysis ? (
+                    /* Waiting state */
+                    <div className="flex flex-col items-center justify-center py-10 gap-3">
+                      <div className="flex gap-1">
+                        {[0,1,2].map(i => (
+                          <div key={i} className="h-2 w-2 rounded-full bg-violet-400 animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
+                        ))}
+                      </div>
+                      <p className="text-[10px] text-slate-500 font-mono">
+                        Waiting for first image upload to run AI analysis…
+                      </p>
+                      <button
+                        onClick={analyzeNow}
+                        disabled={analyzing}
+                        className="mt-1 px-4 py-1.5 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded-xl text-[10px] font-bold uppercase tracking-wider transition cursor-pointer"
+                      >
+                        {analyzing ? 'Analysing…' : '⚡ Analyse Now'}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="p-5 space-y-4">
+                      {/* Condition Badge + Confidence */}
+                      <div className="flex items-start justify-between gap-4">
+                        <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-black uppercase tracking-wider ${meta!.bg} ${meta!.border} ${meta!.text}`}>
+                          <span className="text-sm">{meta!.icon}</span>
+                          {panelAnalysis.label || panelAnalysis.condition.replace(/_/g, ' ')}
+                        </div>
+                        {panelAnalysis.triggerCleaning && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-orange-500 text-white text-[9px] font-black uppercase tracking-wider rounded-full animate-pulse">
+                            🧹 Cleaning Recommended
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Confidence bar */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[9px] uppercase font-black tracking-wider text-slate-500 font-mono">AI Confidence</span>
+                          <span className={`text-[10px] font-black font-mono ${confidence >= 80 ? 'text-emerald-600' : confidence >= 50 ? 'text-amber-600' : 'text-rose-500'}`}>
+                            {confidence}%
+                          </span>
+                        </div>
+                        <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-200">
+                          <div
+                            className={`h-full rounded-full transition-all duration-700 ${
+                              confidence >= 80 ? 'bg-emerald-500' : confidence >= 50 ? 'bg-amber-400' : 'bg-rose-400'
+                            }`}
+                            style={{ width: `${confidence}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Details */}
+                      <div className="space-y-2">
+                        <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl">
+                          <p className="text-[9px] uppercase font-black tracking-wider text-slate-500 mb-1 font-mono">Observation</p>
+                          <p className="text-xs text-slate-700 leading-relaxed">{panelAnalysis.details}</p>
+                        </div>
+                        <div className={`p-3 rounded-xl border ${meta!.bg} ${meta!.border}`}>
+                          <p className="text-[9px] uppercase font-black tracking-wider mb-1 font-mono opacity-70">Recommendation</p>
+                          <p className={`text-xs font-semibold leading-relaxed ${meta!.text}`}>{panelAnalysis.recommendation}</p>
+                        </div>
+                      </div>
+
+                      {/* Footer metadata */}
+                      <div className="flex items-center justify-between pt-1 border-t border-slate-100">
+                        <span className="text-[9px] font-mono text-slate-400">Model: Gemini 1.5 Flash Vision</span>
+                        <div className="flex items-center gap-1">
+                          <span className={`h-1.5 w-1.5 rounded-full ${meta!.dot}`} />
+                          <span className="text-[9px] font-mono text-slate-400 uppercase">{panelAnalysis.condition.replace(/_/g,' ')}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         </div>
 

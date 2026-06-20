@@ -275,7 +275,7 @@ void uploadJpgTo(const char *host, camera_fb_t *fb) {
   WiFiClientSecure clientSecure;
   bool success = false;
 
-  String url = String(host) + "/api/camera/upload";
+  String url = String(host) + "/api/camera/upload?device_id=" + String(DEVICE_ID);
   Serial.print("Uploading JPEG to: ");
   Serial.println(url);
 

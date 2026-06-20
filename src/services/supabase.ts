@@ -26,7 +26,9 @@ const liveSupabaseWithForwarding = (isLiveMode && supabaseReal) ? new Proxy(supa
                   if (typeof window !== 'undefined' && 
                       (window.location.hostname === 'localhost' || 
                        window.location.hostname === '127.0.0.1' || 
-                       window.location.hostname.startsWith('192.168.'))) {
+                       window.location.hostname.startsWith('192.168.') ||
+                       window.location.hostname.startsWith('10.') ||
+                       window.location.hostname.startsWith('172.'))) {
                     const payloads = Array.isArray(payload) ? payload : [payload];
                     payloads.forEach((singlePayload: any) => {
                       fetch('/api/commands', {
@@ -162,13 +164,13 @@ const mockSupabaseClient = {
           insertedData = mockDb.addDevice(singlePayload);
         }
 
-        const p = Promise.resolve({ data: insertedData ? [insertedData] : [], error: null });
+        const p = Promise.resolve({ data: insertedData ? [insertedData] : [], error: null as any });
         return Object.assign(p, {
           select: () => {
-            const pSelect = Promise.resolve({ data: insertedData ? [insertedData] : [], error: null });
+            const pSelect = Promise.resolve({ data: insertedData ? [insertedData] : [], error: null as any });
             return Object.assign(pSelect, {
               single: async () => {
-                return { data: insertedData, error: null };
+                return { data: insertedData, error: null as any };
               }
             });
           }

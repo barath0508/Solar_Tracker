@@ -3,6 +3,15 @@ import { useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
+// Suppress the THREE.Clock deprecation warning emitted by @react-three/fiber
+// internally. We cannot change the library, so we patch console.warn once.
+const _origWarn = console.warn.bind(console);
+console.warn = (...args: any[]) => {
+  if (typeof args[0] === 'string' && args[0].includes('THREE.Clock')) return;
+  _origWarn(...args);
+};
+
+
 interface SolarDigitalTwinProps {
   azimuth: number; // e.g. -45 to 45
   elevation: number; // e.g. 0 to 90

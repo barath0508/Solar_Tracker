@@ -251,7 +251,7 @@ export default function Dashboard({ userRole }: DashboardProps) {
     if (!isLiveMode) {
       mockDb.addDevice({ name: newDevName, serial_number: newDevSerial, latitude: lat, longitude: lng, status: 'online', current_firmware_version: 'v1.0.0' });
     } else {
-      const { error } = await supabase.from('devices').insert({ name: newDevName, serial_number: newDevSerial, latitude: lat, longitude: lng, status: 'online', current_firmware_version: 'v1.0.0' });
+      const { error } = await supabase.from('devices').insert({ name: newDevName, serial_number: newDevSerial, latitude: lat, longitude: lng, status: 'online', current_firmware_version: 'v1.0.0' }) as any;
       if (error) { alert(`Failed to add device: ${error.message}`); return; }
     }
     setNewDevName(''); setNewDevSerial(''); setShowAddModal(false); setFormErrors({});

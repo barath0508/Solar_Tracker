@@ -8,6 +8,8 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   PieChart, Pie, Cell, Sector
 } from 'recharts';
+
+const PieComponent = Pie as any;
 import {
   TrendingUp, ShieldAlert, FileText, CheckCircle, PieChart as PieIcon, BarChart2,
   Download, Search, X, Filter
@@ -266,20 +268,23 @@ export default function Analytics() {
             <div className="h-52 w-52 shrink-0">
               <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                 <PieChart>
-                  <Pie
+                  <PieComponent
                     activeIndex={activePieIdx}
                     activeShape={renderActiveShape}
                     data={anomalyData}
-                    cx="50%" cy="50%"
-                    innerRadius={50} outerRadius={72}
-                    paddingAngle={3} dataKey="value"
-                    onMouseEnter={(_, idx) => setActivePieIdx(idx)}
-                    onClick={(_, idx) => setActivePieIdx(idx)}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={50}
+                    outerRadius={72}
+                    paddingAngle={3}
+                    dataKey="value"
+                    onMouseEnter={(_: any, idx: number) => setActivePieIdx(idx)}
+                    onClick={(_: any, idx: number) => setActivePieIdx(idx)}
                   >
                     {anomalyData.map((entry, idx) => (
                       <Cell key={`cell-${idx}`} fill={entry.color} />
                     ))}
-                  </Pie>
+                  </PieComponent>
                 </PieChart>
               </ResponsiveContainer>
             </div>

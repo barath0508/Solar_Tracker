@@ -1,26 +1,29 @@
 #include "esp_camera.h"
-#include <WiFi.h>
-#include <HTTPClient.h>
-#include <WiFiClientSecure.h>
 #include "esp_http_server.h"
+#include <HTTPClient.h>
+#include <WiFi.h>
+#include <WiFiClientSecure.h>
 
 // ==========================================
 // User Credentials & Server Configuration
 // ==========================================
-const char* ssid = "POCO X6 5G";
-const char* password = ""; // Replace with your actual Wi-Fi password if different
+const char *ssid = "POCO X6 5G";
+const char *password =
+    ""; // Replace with your actual Wi-Fi password if different
 
 // 1. Local Dev Server Settings
-const char* localHost = "http://192.168.137.60:5173";
+const char *localHost = "http://10.72.126.126:5173";
 
-// 2. Production Vercel Server Settings (Replace with your actual deployed Vercel domain)
-// Note: If left as default/placeholder, Vercel requests will be bypassed to avoid timeout lags.
-const char* vercelHost = "https://solar-tracker-pi-jade.vercel.app";
+// 2. Production Vercel Server Settings (Replace with your actual deployed
+// Vercel domain) Note: If left as default/placeholder, Vercel requests will be
+// bypassed to avoid timeout lags.
+const char *vercelHost = "https://solar-tracker-pi-jade.vercel.app";
 
 // Helper to check if Vercel server host is configured and should be used
 bool shouldUseVercel() {
   String host = String(vercelHost);
-  return (host.length() > 0 && host.indexOf("your-vercel-project") == -1 && host.startsWith("http"));
+  return (host.length() > 0 && host.indexOf("your-vercel-project") == -1 &&
+          host.startsWith("http"));
 }
 
 // Target Device ID registered in your website's database
@@ -29,23 +32,23 @@ bool shouldUseVercel() {
 // ==========================================
 // ESP32-CAM AI-Thinker Pin Layout
 // ==========================================
-#define PWDN_GPIO_NUM     32
-#define RESET_GPIO_NUM    -1
-#define XCLK_GPIO_NUM      0
-#define SIOD_GPIO_NUM     26
-#define SIOC_GPIO_NUM     27
+#define PWDN_GPIO_NUM 32
+#define RESET_GPIO_NUM -1
+#define XCLK_GPIO_NUM 0
+#define SIOD_GPIO_NUM 26
+#define SIOC_GPIO_NUM 27
 
-#define Y9_GPIO_NUM       35
-#define Y8_GPIO_NUM       34
-#define Y7_GPIO_NUM       39
-#define Y6_GPIO_NUM       36
-#define Y5_GPIO_NUM       21
-#define Y4_GPIO_NUM       19
-#define Y3_GPIO_NUM       18
-#define Y2_GPIO_NUM        5
-#define VSYNC_GPIO_NUM    25
-#define HREF_GPIO_NUM     23
-#define PCLK_GPIO_NUM     22
+#define Y9_GPIO_NUM 35
+#define Y8_GPIO_NUM 34
+#define Y7_GPIO_NUM 39
+#define Y6_GPIO_NUM 36
+#define Y5_GPIO_NUM 21
+#define Y4_GPIO_NUM 19
+#define Y3_GPIO_NUM 18
+#define Y2_GPIO_NUM 5
+#define VSYNC_GPIO_NUM 25
+#define HREF_GPIO_NUM 23
+#define PCLK_GPIO_NUM 22
 
 // HTTP Server instance
 httpd_handle_t camera_httpd = NULL;
@@ -59,32 +62,34 @@ const unsigned long commandPollInterval = 1000; // Poll commands every 1 second
 // Forward Declarations
 void connectWiFi();
 void captureAndUpload();
-void uploadJpgTo(const char* host, camera_fb_t* fb);
+void uploadJpgTo(const char *host, camera_fb_t *fb);
 void startCameraServer();
 void pollCommands();
-void pollCommandsFrom(const char* host);
+void pollCommandsFrom(const char *host);
 
 // ==========================================
 // Stream Handler for MJPEG
 // ==========================================
 #define PART_BOUNDARY "123456789000000000000987654321"
-static const char* _STREAM_CONTENT_TYPE = "multipart/x-mixed-replace;boundary=" PART_BOUNDARY;
-static const char* _STREAM_BOUNDARY = "\r\n--" PART_BOUNDARY "\r\n";
-static const char* _STREAM_PART = "Content-Type: image/jpeg\r\nContent-Length: %u\r\n\r\n";
+static const char *_STREAM_CONTENT_TYPE =
+    "multipart/x-mixed-replace;boundary=" PART_BOUNDARY;
+static const char *_STREAM_BOUNDARY = "\r\n--" PART_BOUNDARY "\r\n";
+static const char *_STREAM_PART =
+    "Content-Type: image/jpeg\r\nContent-Length: %u\r\n\r\n";
 
-esp_err_t stream_handler(httpd_req_t *req){
-  camera_fb_t * fb = NULL;
+esp_err_t stream_handler(httpd_req_t *req) {
+  camera_fb_t *fb = NULL;
   esp_err_t res = ESP_OK;
   size_t _jpg_buf_len = 0;
-  uint8_t * _jpg_buf = NULL;
-  char * part_buf[64];
+  uint8_t *_jpg_buf = NULL;
+  char *part_buf[64];
 
   res = httpd_resp_set_type(req, _STREAM_CONTENT_TYPE);
-  if(res != ESP_OK){
+  if (res != ESP_OK) {
     return res;
   }
 
-  while(true){
+  while (true) {
     fb = esp_camera_fb_get();
     if (!fb) {
       Serial.println("Camera capture failed");
@@ -93,24 +98,25 @@ esp_err_t stream_handler(httpd_req_t *req){
       _jpg_buf_len = fb->len;
       _jpg_buf = fb->buf;
     }
-    if(res == ESP_OK){
-      res = httpd_resp_send_chunk(req, _STREAM_BOUNDARY, strlen(_STREAM_BOUNDARY));
+    if (res == ESP_OK) {
+      res = httpd_resp_send_chunk(req, _STREAM_BOUNDARY,
+                                  strlen(_STREAM_BOUNDARY));
     }
-    if(res == ESP_OK){
+    if (res == ESP_OK) {
       size_t hlen = snprintf((char *)part_buf, 64, _STREAM_PART, _jpg_buf_len);
       res = httpd_resp_send_chunk(req, (const char *)part_buf, hlen);
     }
-    if(res == ESP_OK){
+    if (res == ESP_OK) {
       res = httpd_resp_send_chunk(req, (const char *)_jpg_buf, _jpg_buf_len);
     }
-    if(fb){
+    if (fb) {
       esp_camera_fb_return(fb);
       fb = NULL;
       _jpg_buf = NULL;
-    } else if(res == ESP_OK){
+    } else if (res == ESP_OK) {
       break;
     }
-    if(res != ESP_OK){
+    if (res != ESP_OK) {
       break;
     }
     // Limit frame rate a bit (5ms delay for fast, smooth streaming)
@@ -122,8 +128,8 @@ esp_err_t stream_handler(httpd_req_t *req){
 // ==========================================
 // Single Image Capture Handler
 // ==========================================
-esp_err_t capture_handler(httpd_req_t *req){
-  camera_fb_t * fb = NULL;
+esp_err_t capture_handler(httpd_req_t *req) {
+  camera_fb_t *fb = NULL;
   esp_err_t res = ESP_OK;
 
   fb = esp_camera_fb_get();
@@ -134,8 +140,9 @@ esp_err_t capture_handler(httpd_req_t *req){
   }
 
   httpd_resp_set_type(req, "image/jpeg");
-  httpd_resp_set_hdr(req, "Content-Disposition", "inline; filename=capture.jpg");
-  
+  httpd_resp_set_hdr(req, "Content-Disposition",
+                     "inline; filename=capture.jpg");
+
   res = httpd_resp_send(req, (const char *)fb->buf, fb->len);
   esp_camera_fb_return(fb);
   return res;
@@ -171,14 +178,16 @@ void setup() {
   config.pin_reset = RESET_GPIO_NUM;
   config.xclk_freq_hz = 20000000;
   config.pixel_format = PIXFORMAT_JPEG;
-  
+
   // Select frame size and quality (optimized for speed/size)
-  if(psramFound()){
-    config.frame_size = FRAMESIZE_VGA;  // Allocate max frame size as VGA to optimize memory heap
-    config.jpeg_quality = 20;           // Lower quality value (18-24) to reduce JPEG size for faster WiFi transfer
-    config.fb_count = 2;                // Use double buffering for high-frame-rate stream
+  if (psramFound()) {
+    config.frame_size =
+        FRAMESIZE_VGA; // Allocate max frame size as VGA to optimize memory heap
+    config.jpeg_quality = 20; // Lower quality value (18-24) to reduce JPEG size
+                              // for faster WiFi transfer
+    config.fb_count = 2;      // Use double buffering for high-frame-rate stream
   } else {
-    config.frame_size = FRAMESIZE_CIF;  // Non-PSRAM uses smaller memory buffer
+    config.frame_size = FRAMESIZE_CIF; // Non-PSRAM uses smaller memory buffer
     config.jpeg_quality = 24;
     config.fb_count = 1;
   }
@@ -190,9 +199,10 @@ void setup() {
     return;
   }
 
-  sensor_t * s = esp_camera_sensor_get();
-  s->set_framesize(s, FRAMESIZE_VGA);  // VGA streaming resolution
-  s->set_quality(s, 20);              // High compression value (20) reduces image size and cuts down transfer lags
+  sensor_t *s = esp_camera_sensor_get();
+  s->set_framesize(s, FRAMESIZE_VGA); // VGA streaming resolution
+  s->set_quality(s, 20); // High compression value (20) reduces image size and
+                         // cuts down transfer lags
 
   // Connect to WiFi
   connectWiFi();
@@ -233,7 +243,8 @@ void loop() {
 // Wi-Fi Connection Helper
 // ==========================================
 void connectWiFi() {
-  if (WiFi.status() == WL_CONNECTED) return;
+  if (WiFi.status() == WL_CONNECTED)
+    return;
 
   Serial.print("Connecting to Wi-Fi SSID: ");
   Serial.println(ssid);
@@ -258,7 +269,7 @@ void connectWiFi() {
 // ==========================================
 // HTTP Capture & Upload Helper
 // ==========================================
-void uploadJpgTo(const char* host, camera_fb_t* fb) {
+void uploadJpgTo(const char *host, camera_fb_t *fb) {
   HTTPClient http;
   WiFiClient client;
   WiFiClientSecure clientSecure;
@@ -267,23 +278,26 @@ void uploadJpgTo(const char* host, camera_fb_t* fb) {
   String url = String(host) + "/api/camera/upload";
   Serial.print("Uploading JPEG to: ");
   Serial.println(url);
-  
+
   if (url.startsWith("https://")) {
     clientSecure.setInsecure();
     success = http.begin(clientSecure, url);
   } else {
     success = http.begin(client, url);
   }
-  
+
   if (success) {
     http.addHeader("Content-Type", "image/jpeg");
     int httpResponseCode = http.POST(fb->buf, fb->len);
-    
+
     if (httpResponseCode > 0) {
       String response = http.getString();
-      Serial.printf("Upload success. Code: %d, Response: %s (Host: %s)\n", httpResponseCode, response.c_str(), host);
+      Serial.printf("Upload success. Code: %d, Response: %s (Host: %s)\n",
+                    httpResponseCode, response.c_str(), host);
     } else {
-      Serial.printf("Upload error. Code: %d, Message: %s (Host: %s)\n", httpResponseCode, http.errorToString(httpResponseCode).c_str(), host);
+      Serial.printf("Upload error. Code: %d, Message: %s (Host: %s)\n",
+                    httpResponseCode,
+                    http.errorToString(httpResponseCode).c_str(), host);
     }
     http.end();
   } else {
@@ -298,7 +312,7 @@ void captureAndUpload() {
   }
 
   Serial.println("Capturing frame for upload...");
-  camera_fb_t * fb = esp_camera_fb_get();
+  camera_fb_t *fb = esp_camera_fb_get();
   if (!fb) {
     Serial.println("Capture failed.");
     return;
@@ -315,15 +329,18 @@ void captureAndUpload() {
   esp_camera_fb_return(fb);
 }
 
-void pollCommandsFrom(const char* host) {
-  if (WiFi.status() != WL_CONNECTED) return;
+void pollCommandsFrom(const char *host) {
+  if (WiFi.status() != WL_CONNECTED)
+    return;
 
   HTTPClient http;
   WiFiClient client;
   WiFiClientSecure clientSecure;
   bool success = false;
 
-  String url = String(host) + "/api/commands/poll?device_id=" + String(DEVICE_ID) + "&client=camera";
+  String url = String(host) +
+               "/api/commands/poll?device_id=" + String(DEVICE_ID) +
+               "&client=camera";
 
   if (url.startsWith("https://")) {
     clientSecure.setInsecure();
@@ -341,7 +358,8 @@ void pollCommandsFrom(const char* host) {
 
   if (httpCode == HTTP_CODE_OK) {
     String response = http.getString();
-    Serial.println("[Commands Poll] Response: " + response + " (Host: " + host + ")");
+    Serial.println("[Commands Poll] Response: " + response + " (Host: " + host +
+                   ")");
 
     // Parse commands using index matching (lightweight, zero dependency)
     if (response.indexOf("\"action\"") != -1) {
@@ -357,8 +375,7 @@ void pollCommandsFrom(const char* host) {
       if (action == "capture") {
         Serial.println("Capture command acknowledged. Executing capture...");
         captureAndUpload();
-      }
-      else if (action == "reboot") {
+      } else if (action == "reboot") {
         Serial.println("Reboot command acknowledged. Resetting chip...");
         delay(1000);
         ESP.restart();
@@ -367,7 +384,8 @@ void pollCommandsFrom(const char* host) {
   } else {
     // Suppress verbose connection failure logs to avoid spamming the console
     if (httpCode != -1) {
-      Serial.printf("[Commands Poll] Connection failed. HTTP: %d (Host: %s)\n", httpCode, host);
+      Serial.printf("[Commands Poll] Connection failed. HTTP: %d (Host: %s)\n",
+                    httpCode, host);
     }
   }
 
@@ -384,24 +402,20 @@ void pollCommands() {
 // ==========================================
 // HTTP Server Starter
 // ==========================================
-void startCameraServer(){
+void startCameraServer() {
   httpd_config_t config = HTTPD_DEFAULT_CONFIG();
   config.server_port = 80;
 
-  httpd_uri_t stream_uri = {
-    .uri       = "/stream",
-    .method    = HTTP_GET,
-    .handler   = stream_handler,
-    .user_ctx  = NULL
-  };
+  httpd_uri_t stream_uri = {.uri = "/stream",
+                            .method = HTTP_GET,
+                            .handler = stream_handler,
+                            .user_ctx = NULL};
 
-  httpd_uri_t capture_uri = {
-    .uri       = "/capture",
-    .method    = HTTP_GET,
-    .handler   = capture_handler,
-    .user_ctx  = NULL
-  };
-  
+  httpd_uri_t capture_uri = {.uri = "/capture",
+                             .method = HTTP_GET,
+                             .handler = capture_handler,
+                             .user_ctx = NULL};
+
   Serial.printf("Starting camera server on port: '%d'\n", config.server_port);
   if (httpd_start(&camera_httpd, &config) == ESP_OK) {
     httpd_register_uri_handler(camera_httpd, &stream_uri);

@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { mockDb } from '../services/mockDb';
 import type { Alert } from '../services/mockDb';
-import { Sun, Bell, Shield, Check, Menu, X, User, CheckCheck, ChevronRight } from 'lucide-react';
+import { Bell, Shield, Check, Menu, X, User, CheckCheck, ChevronRight } from 'lucide-react';
 
 interface NavbarProps {
   userRole: 'Visitor' | 'End-User' | 'Technician' | 'Admin';
@@ -79,15 +79,13 @@ export default function Navbar({ userRole, onRoleChange }: NavbarProps) {
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
 
         {/* ── Brand Logo ── */}
-        <Link to="/" className="flex items-center gap-2.5 group shrink-0">
-          <div className="relative flex items-center justify-center p-1.5 bg-amber-500/10 rounded-xl group-hover:bg-amber-500/18 transition duration-300 border border-amber-500/20">
-            <Sun className="h-5 w-5 text-amber-500 animate-spin-slow text-glow-gold" />
-            <div className="absolute inset-0 rounded-xl border border-amber-400/30 scale-90 opacity-0 group-hover:scale-110 group-hover:opacity-100 transition duration-300" />
-          </div>
-          <span className="text-lg font-black tracking-widest text-slate-800">
-            AADHAVAN<span className="text-amber-500 text-glow-solar">AI</span>
-            <span className="hidden lg:inline-block ml-2 text-[9px] text-cyan-600 bg-cyan-50 border border-cyan-200 rounded px-1.5 py-0.5 tracking-wider font-mono font-bold">SYS_v2.4</span>
-          </span>
+        <Link to="/" className="flex items-center shrink-0 group">
+          <img
+            src="/aadhavan-logo.jpg"
+            alt="AadhavanAI Solar Tracker"
+            className="h-12 w-auto object-contain transition-transform duration-300 group-hover:scale-105 drop-shadow-sm"
+          />
+          <span className="hidden lg:inline-block ml-2 text-[9px] text-cyan-600 bg-cyan-50 border border-cyan-200 rounded px-1.5 py-0.5 tracking-wider font-mono font-bold">SYS_v2.4</span>
         </Link>
 
         {/* ── Desktop Navigation Links ── */}

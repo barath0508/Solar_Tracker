@@ -1142,7 +1142,7 @@ export default function DeviceDetail({ userRole }: DeviceDetailProps) {
                       <div className="flex items-start justify-between gap-4">
                         <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-black uppercase tracking-wider ${meta!.bg} ${meta!.border} ${meta!.text}`}>
                           <span className="text-sm">{meta!.icon}</span>
-                          {panelAnalysis.label || panelAnalysis.condition.replace(/_/g, ' ')}
+                           {panelAnalysis.label || (panelAnalysis.condition ? panelAnalysis.condition.replace(/_/g, ' ') : 'unknown')}
                         </div>
                         {panelAnalysis.triggerCleaning && (
                           <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-orange-500 text-white text-[9px] font-black uppercase tracking-wider rounded-full animate-pulse">

@@ -65,9 +65,11 @@ export default async function handler(req: any, res: any) {
       });
     }
 
-    const prompt = `You are an expert solar panel condition monitoring AI built into AadhavanAI — a smart dual-axis solar tracker system.
+    const prompt = `You are an expert solar panel condition monitoring AI built into AadhavanAI — a smart dual-axis solar tracker system prototype.
 
-Analyze this image captured by the onboard ESP32-CAM mounted on the solar tracker panel.
+The image is captured by an onboard ESP32-CAM overlooking a mini solar panel (prototype model). The background may contain wiring, a prototype chassis, and electronic components.
+
+Analyze the surface of the solar panel shown in the image.
 
 Respond ONLY with a valid JSON object (no markdown, no code fences) in this exact structure:
 {
@@ -96,10 +98,29 @@ Set triggerCleaning to true ONLY for heavily_dusty or bird_dropping conditions.`
       contents: [{
         parts: [
           { text: prompt },
-          { inline_data: { mime_type: 'image/jpeg', data: imageBase64 } }
+          { inlineData: { mimeType: 'image/jpeg', data: imageBase64 } }
         ]
       }],
-      generationConfig: { temperature: 0.1, maxOutputTokens: 350 }
+      generationConfig: {
+        temperature: 0.1,
+        maxOutputTokens: 350,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: "OBJECT",
+          properties: {
+            condition: {
+              type: "STRING",
+              enum: ["clear", "dusty", "heavily_dusty", "bird_dropping", "obstructed", "damaged", "glare", "water_logged", "unknown"]
+            },
+            confidence: { type: "INTEGER" },
+            label: { type: "STRING" },
+            details: { type: "STRING" },
+            recommendation: { type: "STRING" },
+            triggerCleaning: { type: "BOOLEAN" }
+          },
+          required: ["condition", "confidence", "label", "details", "recommendation", "triggerCleaning"]
+        }
+      }
     };
 
     const geminiRes = await fetch(GEMINI_URL, {
@@ -157,7 +178,7 @@ Set triggerCleaning to true ONLY for heavily_dusty or bird_dropping conditions.`
       }
     }
 
-    return res.status(200).json(result);
+    return res.status(200).json({ status: 'success', analysis: result });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
   }
